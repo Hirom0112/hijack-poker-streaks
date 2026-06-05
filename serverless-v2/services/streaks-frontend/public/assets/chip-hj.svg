@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Hijack Poker "HJ" chip — PROTOTYPE placeholder, traced from
+  Screenshot 2026-06-04 at 10.02.14 PM.png (the black chip on the right).
+  Dark charcoal body (#1C1F26), gold "HJ" monogram (#C9A24B), segmented
+  edge notches, an inner ring/bevel and a soft top-lit gradient so it reads
+  as a real clay chip even while flat.
+
+  SWAP: drop a final chip PNG/SVG (or a spin sprite sheet) over this file and
+  the LogoReveal choreography keeps working untouched.
+-->
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Hijack Poker HJ chip">
+  <defs>
+    <!-- Top-lit body so the chip looks lit from above-left. -->
+    <radialGradient id="chipBody" cx="42%" cy="36%" r="70%">
+      <stop offset="0%"  stop-color="#2E343F"/>
+      <stop offset="55%" stop-color="#1C1F26"/>
+      <stop offset="100%" stop-color="#0E1015"/>
+    </radialGradient>
+    <!-- Brass gradient for the monogram + accents. -->
+    <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#E7CE84"/>
+      <stop offset="50%" stop-color="#C9A24B"/>
+      <stop offset="100%" stop-color="#9C7A30"/>
+    </linearGradient>
+    <!-- Subtle outer bevel ring sheen. -->
+    <linearGradient id="ring" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#3A414E"/>
+      <stop offset="100%" stop-color="#14161C"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer rim / bevel -->
+  <circle cx="256" cy="256" r="248" fill="url(#ring)"/>
+  <circle cx="256" cy="256" r="240" fill="url(#chipBody)"/>
+
+  <!-- Segmented edge notches: lighter rectangular dashes around the rim. -->
+  <g fill="#3D434F">
+    <!-- 16 notches, every 22.5deg, drawn via rotation -->
+    <g transform="translate(256 256)">
+      <g>
+        <rect x="-22" y="-244" width="44" height="34" rx="6"/>
+        <rect x="-22" y="-244" width="44" height="34" rx="6" transform="rotate(45)"/>
+        <rect x="-22" y="-244" width="44" height="34" rx="6" transform="rotate(90)"/>
+        <rect x="-22" y="-244" width="44" height="34" rx="6" transform="rotate(135)"/>
+        <rect x="-22" y="-244" width="44" height="34" rx="6" transform="rotate(180)"/>
+        <rect x="-22" y="-244" width="44" height="34" rx="6" transform="rotate(225)"/>
+        <rect x="-22" y="-244" width="44" height="34" rx="6" transform="rotate(270)"/>
+        <rect x="-22" y="-244" width="44" height="34" rx="6" transform="rotate(315)"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- Inner gold dotted-ish ring + bevel separating rim from face. -->
+  <circle cx="256" cy="256" r="196" fill="none" stroke="#0C0E13" stroke-width="10"/>
+  <circle cx="256" cy="256" r="190" fill="none" stroke="url(#brass)" stroke-width="3" stroke-opacity="0.55"/>
+  <circle cx="256" cy="256" r="178" fill="url(#chipBody)"/>
+  <circle cx="256" cy="256" r="178" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="2"/>
+
+  <!-- "HJ" monogram. -->
+  <text x="256" y="256" text-anchor="middle" dominant-baseline="central"
+        font-family="Georgia, 'Times New Roman', serif" font-weight="700"
+        font-size="170" fill="url(#brass)"
+        style="paint-order: stroke; stroke: #6E551F; stroke-width: 3px;">HJ</text>
+
+  <!-- Soft specular highlight on the upper-left of the body. -->
+  <ellipse cx="180" cy="150" rx="130" ry="70" fill="#FFFFFF" opacity="0.05"/>
+</svg>
