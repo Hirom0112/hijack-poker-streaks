@@ -39,24 +39,24 @@
 
 ## Slice S1 — Login streak core  *(FR-1.1/1.4–1.7, FR-5.1–5.2, NFR-2)*
 
-- [ ] S1-1: `src/domain/types.ts` — `PlayerStreak`, `ActivityDay`, `NextMilestone`, `StreaksResponse` (9 fields, API_CONTRACT.md §4.1), `CheckInResponse` (§4.2) mirroring DATA_MODEL.md appendix. *(check: `tsc` clean; fields match §4.1 exactly)*
-- [ ] S1-2 RED: `__tests__/services/streak.service.test.ts › first check-in (new player)` → no `lastLoginDate` ⇒ `loginStreak=1, bestLoginStreak=1`, activity `{loggedIn:true, loginStreakAtDay:1, streakBroken:false}` (spec §Edge 6). *(check: red)*
-- [ ] S1-3 GREEN: `src/services/streak.service.ts` new-player branch. *(check: that test green)*
-- [ ] S1-4 RED: `streak.service.test.ts › consecutive day` → `lastLoginDate=yesterday, loginStreak=4` ⇒ `loginStreak=5`. *(check: red)*
-- [ ] S1-5 GREEN: consecutive-increment branch. *(check: green)*
-- [ ] S1-6 RED: `streak.service.test.ts › idempotent same-day` → 2nd same-day check-in ⇒ `loginStreak` unchanged, `streakAdvanced:false`, one activity row, both `200` (NFR-2). *(check: red)*
-- [ ] S1-7 GREEN: activity-row `attribute_not_exists(#date)` short-circuit drives idempotency (DATA_MODEL.md §7 pattern D). *(check: green)*
-- [ ] S1-8 RED: `streak.service.test.ts › missed day, no freeze` → `lastLoginDate=2 days ago, freezesAvailable=0, loginStreak=9` ⇒ `loginStreak=1`, activity `streakBroken:true` (FR-1.5). *(check: red)*
-- [ ] S1-9 GREEN: reset branch (no freeze logic yet — that's S4). *(check: green)*
-- [ ] S1-10 RED: `streak.service.test.ts › nextLoginMilestone` → `loginStreak=12` ⇒ `{days:14,reward:400,daysRemaining:2}`; `>=90` ⇒ `null` (API_CONTRACT.md §4.1/§5.5). *(check: red)*
-- [ ] S1-11 GREEN: next-milestone helper from `config/milestones.ts`. *(check: green)*
-- [ ] S1-12 RED: `__tests__/repositories/dynamo.repository.test.ts › conditional login writes` (mocked `docClient`) → `createPlayer` uses `attribute_not_exists(playerId)`; `putActivity` uses `attribute_not_exists(#date)`; `advanceLoginStreak` uses `ConditionExpression: lastLoginDate = :yesterday` and **no** `ADD` on `loginStreak` (CLAUDE.md Inv 3). *(check: red)*
-- [ ] S1-13 GREEN: `src/repositories/dynamo.repository.ts` — `getPlayer`, `createPlayer`, `putActivity`, `advanceLoginStreak` (patterns B/D/C). *(check: green; `grep 'ADD ' repository` finds no streak-counter ADD)*
-- [ ] S1-14: `src/handlers/check-in.ts` (FR-5.2) + `src/handlers/streaks.ts` (FR-5.1) — thin; compute `today/yesterday` once at the edge (NFR-1); map to §4.1/§4.2 shapes. *(check: typecheck clean; handlers contain no `docClient` call — CLAUDE.md Inv 6)*
-- [ ] S1-15: Mount canonical `/api/v1/player/streaks` + `/api/v1/player/streaks/check-in` **and** the `/api/v1/streaks…` alias (ADR-6) behind `authMiddleware` in `handler.ts`. *(check: both paths route to the same handler)*
-- [ ] S1-16 RED: `__tests__/integration/check-in.int.test.ts` (supertest + DynamoDB Local) → new player POST check-in ⇒ `200 streakAdvanced:true loginStreak:1`; repeat ⇒ `200 streakAdvanced:false`; `GET /player/streaks` ⇒ `loginStreak:1`; unseen-player GET ⇒ `200` all-zeros (ASSUMPTIONS zero-state). *(check: red then green)*
-- [ ] S1-17 GREEN: make the integration test pass end-to-end. *(check: `npm test` green)*
-- [ ] S1-18 GATE: **Slice S1 DoD** — `npm test` green incl. 5 worked targets + integration; live double-check-in shows `true` then `false` both `200`; `GET …/player/streaks` correct; no bare `ADD`. Write `SLICE_REPORTS/slice-1.md`.
+- [x] S1-1: `src/domain/types.ts` — `PlayerStreak`, `ActivityDay`, `NextMilestone`, `StreaksResponse` (9 fields, API_CONTRACT.md §4.1), `CheckInResponse` (§4.2) mirroring DATA_MODEL.md appendix. *(check: `tsc` clean; fields match §4.1 exactly)*
+- [x] S1-2 RED: `__tests__/services/streak.service.test.ts › first check-in (new player)` → no `lastLoginDate` ⇒ `loginStreak=1, bestLoginStreak=1`, activity `{loggedIn:true, loginStreakAtDay:1, streakBroken:false}` (spec §Edge 6). *(check: red)*
+- [x] S1-3 GREEN: `src/services/streak.service.ts` new-player branch. *(check: that test green)*
+- [x] S1-4 RED: `streak.service.test.ts › consecutive day` → `lastLoginDate=yesterday, loginStreak=4` ⇒ `loginStreak=5`. *(check: red)*
+- [x] S1-5 GREEN: consecutive-increment branch. *(check: green)*
+- [x] S1-6 RED: `streak.service.test.ts › idempotent same-day` → 2nd same-day check-in ⇒ `loginStreak` unchanged, `streakAdvanced:false`, one activity row, both `200` (NFR-2). *(check: red)*
+- [x] S1-7 GREEN: activity-row `attribute_not_exists(#date)` short-circuit drives idempotency (DATA_MODEL.md §7 pattern D). *(check: green)*
+- [x] S1-8 RED: `streak.service.test.ts › missed day, no freeze` → `lastLoginDate=2 days ago, freezesAvailable=0, loginStreak=9` ⇒ `loginStreak=1`, activity `streakBroken:true` (FR-1.5). *(check: red)*
+- [x] S1-9 GREEN: reset branch (no freeze logic yet — that's S4). *(check: green)*
+- [x] S1-10 RED: `streak.service.test.ts › nextLoginMilestone` → `loginStreak=12` ⇒ `{days:14,reward:400,daysRemaining:2}`; `>=90` ⇒ `null` (API_CONTRACT.md §4.1/§5.5). *(check: red)*
+- [x] S1-11 GREEN: next-milestone helper from `config/milestones.ts`. *(check: green)*
+- [x] S1-12 RED: `__tests__/repositories/dynamo.repository.test.ts › conditional login writes` (mocked `docClient`) → `createPlayer` uses `attribute_not_exists(playerId)`; `putActivity` uses `attribute_not_exists(#date)`; `advanceLoginStreak` uses `ConditionExpression: lastLoginDate = :yesterday` and **no** `ADD` on `loginStreak` (CLAUDE.md Inv 3). *(check: red)*
+- [x] S1-13 GREEN: `src/repositories/dynamo.repository.ts` — `getPlayer`, `createPlayer`, `putActivity`, `advanceLoginStreak` (patterns B/D/C). *(check: green; `grep 'ADD ' repository` finds no streak-counter ADD)*
+- [x] S1-14: `src/handlers/check-in.ts` (FR-5.2) + `src/handlers/streaks.ts` (FR-5.1) — thin; compute `today/yesterday` once at the edge (NFR-1); map to §4.1/§4.2 shapes. *(check: typecheck clean; handlers contain no `docClient` call — CLAUDE.md Inv 6)*
+- [x] S1-15: Mount canonical `/api/v1/player/streaks` + `/api/v1/player/streaks/check-in` **and** the `/api/v1/streaks…` alias (ADR-6) behind `authMiddleware` in `handler.ts`. *(check: both paths route to the same handler)*
+- [x] S1-16 RED: `__tests__/integration/check-in.int.test.ts` (supertest + DynamoDB Local) → new player POST check-in ⇒ `200 streakAdvanced:true loginStreak:1`; repeat ⇒ `200 streakAdvanced:false`; `GET /player/streaks` ⇒ `loginStreak:1`; unseen-player GET ⇒ `200` all-zeros (ASSUMPTIONS zero-state). *(check: red then green)*
+- [x] S1-17 GREEN: make the integration test pass end-to-end. *(check: `npm test` green)*
+- [x] S1-18 GATE: **Slice S1 DoD** — `npm test` green incl. 5 worked targets + integration; live double-check-in shows `true` then `false` both `200`; `GET …/player/streaks` correct; no bare `ADD`. Write `SLICE_REPORTS/slice-1.md`.
 
 ---
 
@@ -193,6 +193,18 @@
 - [ ] S10-1: `.github/workflows/ci.yml` — on push/PR, `actions/setup-node@v4` Node 22, install + `tsc --noEmit` + `streaks-api` Jest + `streaks-frontend` Vitest (ARCHITECTURE.md §10). No new npm deps. *(check: workflow parses; both suites invoked)*
 - [ ] S10-2: Ensure parity with `.githooks/pre-push` (red CI == red push, CLAUDE.md §4). *(check: same commands in both)*
 - [ ] S10-3 GATE: **Slice S10 DoD** — workflow valid; both suites run; a push shows green steps. Write `SLICE_REPORTS/slice-10.md`.
+
+---
+
+## Backlog — Login experience + themed dashboard (user-requested 2026-06-05)  *(NOT core; lands at/after S6, gated behind S7 per CLAUDE.md §2 over-scope rule)*
+
+User direction captured during the S1 build. This is an **extension of the S6 dashboard + a new pre-dashboard login/intro flow** — do NOT start it while any S0–S7 core item is open. Assets currently live on the user's Desktop and must be copied into `streaks-frontend/public/` (or `src/assets/`) when this is built.
+
+- [ ] BL-1: **Cinematic intro → login → dashboard flow.** On first load play the branded intro video (`ElevenLabs_video_kling-o-3-edit_make the sun..._2026-06-05T16_04_20.mp4`, ~5.8 MB, Hijack Poker logo / "make the sun…" motion piece), then transition to the **login screen** (ref `Gemini_Generated_Image_6sf9ru6sf9ru6sf9.png` — art-deco brass/wood "High Roller's Lounge" Hijack card with **Sign In / Sign Up**), and on login land on the **streaks/freeze dashboard** (ref `Gemini_Generated_Image_ncgch7ncgch7ncgc.png`). Login is stub-auth in this build (sets `X-Player-Id`; a seed id like `streak-001`), no real credentials. *(check: load app → intro plays → login → dashboard renders for the chosen player)*
+- [ ] BL-2: **Three selectable dashboard themes** via a top-corner tab (Option 1 / 2 / 3), each visually distinct, switchable at runtime. Option candidates: (1) the docs' dark `#0D1117` + orange `#FF9800`; (2) the warm art-deco brass/parchment "saloon" palette shown in the dashboard mockup; (3) a third distinct treatment (e.g. high-contrast neon/charcoal). Themes swap the MUI palette only — same components/data. *(check: tab switches all three live; each passes the FR-4 component tests)*
+- [ ] BL-3: The `ncgch7…` mockup is an **on-spec FR-4 reference** (login+play counters w/ flame/cards, next-milestone, 2 freezes w/ grant/purchase source, 30-day 5-state heat-map + legend, milestone banner, reward history) — use it as the visual target for S6 and the theme work; reconcile its palette choice with the S6-3 brand decision (the mockup diverges from the dark/orange docs token — that divergence is BL-2 Option 2, not a docs violation). *(check: S6 dashboard matches the mockup's information layout)*
+
+> **Scope note (no invention):** these are recorded per CLAUDE.md §7 "features not in the docs go to TODO.md backlog with a note." They are bonus/extension work beyond the documented FR set; the core daily-streaks feature (S0–S7) ships complete first. If time is short, BL-1/BL-2 go to the README "what we'd do next."
 
 ---
 

@@ -41,6 +41,13 @@ blockers go in `BLOCKED.md` instead, not here.
 - **Action.** **Correct TECH_STACK.md §2 and TODO S0-1** to `serverless-esbuild ^1.55.0` during the S7 docs pass.
 - **Sub-note (dep budget).** Two dev-only **type** packages — `@types/jest`, `@types/express` — were added beyond the literal toolchain list. TECH_STACK §2/§3 explicitly excludes `@types/*` from the "5 new installs" budget; the 5 net installs remain typescript/ts-jest/serverless-esbuild/@types/luxon (dev) + luxon (prod). STND-5 intact.
 
+## A-5 — serverless-offline lambda bundling + AWS creds (S1 live-gate fixes)
+
+- **Gap (not a doc conflict).** The S1 handlers import the shared winston logger, which pulls `shared/config/logger.js` (`require('winston')`) into the esbuild bundle; esbuild could not resolve `winston` from the shared dir and the offline lambda failed to boot. After that, every DynamoDB call returned `UnrecognizedClientException` because serverless-offline overrides the process AWS creds at invocation and the offline `provider.environment` didn't declare them.
+- **Resolution.** Config-only: (1) add `winston` to `custom.esbuild.exclude` in `serverless.offline.yml` + `serverless.yml` (resolves from `streaks-api/node_modules` at runtime, same pattern as the auto-external `@aws-sdk/*`); (2) declare `DYNAMODB_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` in the offline `provider.environment` with `${env:…, default}` fallbacks so the offline lambda authoritatively points at DynamoDB Local with the literal `local`/`local` creds (Inv 12).
+- **Precedence.** Most-boring, invariant-preserving option (no app-code change, no new deps). Surfaced only at S1 because S0's health route imported nothing from `shared/`; it is the TECH_STACK §3 shared-interop risk made concrete. No wire/storage change.
+- **Action.** None pending — fix is in `serverless.offline.yml`/`serverless.yml`. If more handlers import other shared native deps (`ioredis`/`mysql2`/`sequelize`), add them to `exclude` too.
+
 ---
 
 ## Carried (already-documented in the docs, not conflicts — listed so they aren't re-litigated)
