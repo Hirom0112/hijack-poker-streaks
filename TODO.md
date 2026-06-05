@@ -122,17 +122,17 @@
 
 ## Slice S5 — Calendar + seed  *(FR-5.3; NFR-5, NFR-8)*
 
-- [ ] S5-1 RED: `__tests__/services/calendar.service.test.ts › deriveActivity` → `{loggedIn:true,played:false}`→`login_only`; `{played:true}`→`played`; `{freezeUsed:true}`→`freeze`; `{streakBroken:true}`→`broken`; none→`none`; priority `played>freeze>broken>login_only>none` (DATA_MODEL.md §3). *(check: red)*
-- [ ] S5-2 GREEN: `src/services/calendar.service.ts` `deriveActivity()` (total, order-independent). *(check: green)*
-- [ ] S5-3 RED: `calendar.service.test.ts › dense month array` → one entry per calendar day ascending; absent days `none` zeroed; future days in current month `none` (§4.3). *(check: red)*
-- [ ] S5-4 GREEN: dense-array assembly. *(check: green)*
-- [ ] S5-5 RED: `calendar.service.test.ts › month validation` → `2026-2`/`2026-13`/`feb` ⇒ 400-class; omitted ⇒ current UTC month (§4.3 ASSUMPTION). *(check: red)*
-- [ ] S5-6 GREEN: validation + default. *(check: green)*
-- [ ] S5-7 RED: `dynamo.repository.test.ts › queryMonth` → one `QueryCommand` `playerId = :p AND begins_with(#date, :ym)` (pattern F, NFR-8). *(check: red)*
-- [ ] S5-8 GREEN: add `queryMonth` to `dynamo.repository.ts`. *(check: green; no Scan)*
-- [ ] S5-9: `src/handlers/calendar.ts` (FR-5.3) → `{month, days[]}` (§4.3), `400` on malformed month. *(check: typecheck clean)*
-- [ ] S5-10: Rewrite `scripts/seed-streaks.js` to the new model (DATA_MODEL.md §11) — keep 10 players `streak-001..010` + weights, 60 days ending today UTC; per-day `loggedIn~Bernoulli(consistency)`, `played~Bernoulli(consistency*0.6)`; walk days for `loginStreakAtDay`/`playStreakAtDay` with gap resets; protect some single-day gaps with a freeze (write `freezeUsed`, decrement balance, write `streaks-freeze-history` row); write a `streaks-rewards` row each time a counter **equals** a milestone (incl. re-award); derive player aggregate last (current/best, last dates, `lastFreezeGrantDate=current YYYY-MM`); **drop** legacy `currentStreak`/`longestStreak`/`totalCheckIns`/`lastCheckIn`/activity `checkedIn`; plain `PutCommand` (re-runnable). *(check: seed runs; `streaks-players` item has no legacy fields)*
-- [ ] S5-11 GATE: **Slice S5 DoD** — `npm test` green incl. all 5 derivations + priority + validation; `docker compose --profile streaks up` + `node scripts/seed-streaks.js`, then `curl "…/calendar?month=<current>" -H 'X-Player-Id: streak-001'` returns a dense array mixing all 5 states; `grep -n Scan src/{handlers,services,repositories}` clean. Write `SLICE_REPORTS/slice-5.md`.
+- [x] S5-1 RED: `__tests__/services/calendar.service.test.ts › deriveActivity` → `{loggedIn:true,played:false}`→`login_only`; `{played:true}`→`played`; `{freezeUsed:true}`→`freeze`; `{streakBroken:true}`→`broken`; none→`none`; priority `played>freeze>broken>login_only>none` (DATA_MODEL.md §3). *(check: red)*
+- [x] S5-2 GREEN: `src/services/calendar.service.ts` `deriveActivity()` (total, order-independent). *(check: green)*
+- [x] S5-3 RED: `calendar.service.test.ts › dense month array` → one entry per calendar day ascending; absent days `none` zeroed; future days in current month `none` (§4.3). *(check: red)*
+- [x] S5-4 GREEN: dense-array assembly. *(check: green)*
+- [x] S5-5 RED: `calendar.service.test.ts › month validation` → `2026-2`/`2026-13`/`feb` ⇒ 400-class; omitted ⇒ current UTC month (§4.3 ASSUMPTION). *(check: red)*
+- [x] S5-6 GREEN: validation + default. *(check: green)*
+- [x] S5-7 RED: `dynamo.repository.test.ts › queryMonth` → one `QueryCommand` `playerId = :p AND begins_with(#date, :ym)` (pattern F, NFR-8). *(check: red)*
+- [x] S5-8 GREEN: add `queryMonth` to `dynamo.repository.ts`. *(check: green; no Scan)*
+- [x] S5-9: `src/handlers/calendar.ts` (FR-5.3) → `{month, days[]}` (§4.3), `400` on malformed month. *(check: typecheck clean)*
+- [x] S5-10: Rewrite `scripts/seed-streaks.js` to the new model (DATA_MODEL.md §11) — keep 10 players `streak-001..010` + weights, 60 days ending today UTC; per-day `loggedIn~Bernoulli(consistency)`, `played~Bernoulli(consistency*0.6)`; walk days for `loginStreakAtDay`/`playStreakAtDay` with gap resets; protect some single-day gaps with a freeze (write `freezeUsed`, decrement balance, write `streaks-freeze-history` row); write a `streaks-rewards` row each time a counter **equals** a milestone (incl. re-award); derive player aggregate last (current/best, last dates, `lastFreezeGrantDate=current YYYY-MM`); **drop** legacy `currentStreak`/`longestStreak`/`totalCheckIns`/`lastCheckIn`/activity `checkedIn`; plain `PutCommand` (re-runnable). *(check: seed runs; `streaks-players` item has no legacy fields)*
+- [x] S5-11 GATE: **Slice S5 DoD** — `npm test` green incl. all 5 derivations + priority + validation; `docker compose --profile streaks up` + `node scripts/seed-streaks.js`, then `curl "…/calendar?month=<current>" -H 'X-Player-Id: streak-001'` returns a dense array mixing all 5 states; `grep -n Scan src/{handlers,services,repositories}` clean. Write `SLICE_REPORTS/slice-5.md`.
 
 ---
 
