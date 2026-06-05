@@ -2,14 +2,8 @@ import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { streaksApi } from './store/streaksApi';
 import { DEFAULT_THEME, themes, type ThemeName } from './theme';
 
-/** Demo default player (ASSUMPTIONS A-2): seeded `streak-001` so the dashboard renders on load. */
-const DEFAULT_PLAYER_ID = 'streak-001';
-const initialPlayerId =
-  (typeof localStorage !== 'undefined' && localStorage.getItem('playerId')) ||
-  DEFAULT_PLAYER_ID;
-if (typeof localStorage !== 'undefined' && !localStorage.getItem('playerId')) {
-  localStorage.setItem('playerId', DEFAULT_PLAYER_ID);
-}
+/** Demo default player (ASSUMPTIONS A-2): the login screen pre-fills `streak-001`. */
+export const DEFAULT_PLAYER_ID = 'streak-001';
 
 interface AuthState {
   playerId: string | null;
@@ -18,9 +12,11 @@ interface AuthState {
 
 const authSlice = createSlice({
   name: 'auth',
+  // Start logged OUT so the app always opens at the beginning:
+  // localhost:4001 → /intro (cinematic) → login → "Continue as streak-001" → dashboard.
   initialState: {
-    playerId: initialPlayerId,
-    isAuthenticated: true,
+    playerId: null,
+    isAuthenticated: false,
   } as AuthState,
   reducers: {
     login(state, action: PayloadAction<string>) {

@@ -6,7 +6,6 @@ import { Box } from '@mui/material';
 import type { RootState } from './store';
 import StreakDashboard from './components/StreakDashboard';
 import LoginScreen from './components/LoginScreen';
-import { introAlreadySeen } from './components/intro/useSequencer';
 
 /**
  * The redesigned cinematic open lives in its own lazy chunk so Framer Motion
@@ -25,8 +24,8 @@ const OpenSequence = lazy(() => import('./components/intro/OpenSequence'));
  */
 function RequireAuth({ children }: { children: ReactElement }) {
   const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
-  if (isAuthenticated) return children;
-  return <Navigate to={introAlreadySeen() ? '/login' : '/intro'} replace />;
+  // Logged-out visitors to the app root always start at the beginning (the cinematic).
+  return isAuthenticated ? children : <Navigate to="/intro" replace />;
 }
 
 /** Black hold while the intro chunk loads (no flash before the cinematic). */
