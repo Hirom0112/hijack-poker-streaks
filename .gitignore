@@ -6,3 +6,6 @@ dist/
 coverage/
 *.log
 .DS_Store
+
+# Reference-only design mockup (not shipped)
+serverless-v2/services/streaks-frontend/public/assets/dashboard-ref.png
