@@ -18,7 +18,7 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 
 import { docClient } from '../../shared/config/dynamo';
-import type { ActivityDay, PlayerStreak, RewardRecord } from '../domain/types';
+import type { ActivityDay, FreezeRecord, PlayerStreak, RewardRecord } from '../domain/types';
 
 /** The `Update` leg of a `TransactWriteCommand` item (the doc-client shape). */
 type TransactUpdate = NonNullable<
@@ -28,6 +28,11 @@ type TransactUpdate = NonNullable<
 const PLAYERS_TABLE = process.env.STREAKS_PLAYERS_TABLE ?? 'streaks-players';
 const ACTIVITY_TABLE = process.env.STREAKS_ACTIVITY_TABLE ?? 'streaks-activity';
 const REWARDS_TABLE = process.env.STREAKS_REWARDS_TABLE ?? 'streaks-rewards';
+const FREEZE_HISTORY_TABLE =
+  process.env.STREAKS_FREEZE_HISTORY_TABLE ?? 'streaks-freeze-history';
+
+/** Soft cap on the freeze balance (API_CONTRACT.md §4.7; an over-cap grant → 409). */
+export const FREEZE_BALANCE_CAP = 99;
 
 /** Load a player aggregate, or `null` if never seen (DATA_MODEL.md §7 A). */
 export async function getPlayer(playerId: string): Promise<PlayerStreak | null> {
@@ -558,6 +563,219 @@ function buildPlayAdvanceUpdate(
       ':now': now,
     },
   };
+}
+
+/** Inputs to the freeze-consumption transaction (Inv 5, DATA_MODEL.md §8). */
+export interface ConsumeFreezeInput {
+  playerId: string;
+  /** The single missed UTC day the freeze protects (the freeze-history SK). */
+  missedDate: string;
+  /** Which balance the consumed freeze came from. */
+  source: 'free_monthly' | 'purchased';
+  /** Service-computed post-consume balance (grant already folded in). */
+  newFreezesAvailable: number;
+  /** Service-computed post-consume freezes-used-this-month. */
+  newFreezesUsedThisMonth: number;
+  now: string;
+}
+
+/**
+ * Consume a freeze to protect a single missed day, ATOMICALLY (Inv 5,
+ * DATA_MODEL.md §8, ARCHITECTURE.md §5c). A single `TransactWriteCommand`
+ * bundles exactly three writes so a protected day is never half-recorded:
+ *
+ *  1. player **Update** — `SET freezesAvailable = :avail, freezesUsedThisMonth =
+ *     :used` to the SERVICE-computed values (the grant is already folded in),
+ *     guarded by `ConditionExpression: freezesAvailable > :zero` so a racing
+ *     duplicate that already spent the last freeze fails the transaction. Note
+ *     (STND-4): the no-bare-`ADD` rule binds the STREAK counters only; here we
+ *     `SET` the freeze balance to a computed value, never touching loginStreak/
+ *     playStreak.
+ *  2. `streaks-freeze-history` **Put** for the missed `date` with
+ *     `attribute_not_exists(#date)` — the per-day idempotency gate (a day is
+ *     protected at most once; the cron and the lazy path can never double-consume).
+ *  3. activity **Update** on the missed day's row — `SET freezeUsed = :true,
+ *     streakBroken = :false` (create-or-merge: the row may not exist yet for an
+ *     absent player), materializing the `freezeUsed` flag the calendar renders.
+ *
+ * Returns `true` on commit, `false` if the transaction was cancelled by a
+ * condition (no balance / already protected) — the caller treats that as a
+ * no-protection fall-through to the reset path.
+ */
+export async function consumeFreeze(input: ConsumeFreezeInput): Promise<boolean> {
+  try {
+    await docClient.send(
+      new TransactWriteCommand({
+        TransactItems: [
+          {
+            Update: {
+              TableName: PLAYERS_TABLE,
+              Key: { playerId: input.playerId },
+              UpdateExpression:
+                'SET freezesAvailable = :avail, freezesUsedThisMonth = :used, updatedAt = :now',
+              ConditionExpression: 'freezesAvailable > :zero',
+              ExpressionAttributeValues: {
+                ':avail': input.newFreezesAvailable,
+                ':used': input.newFreezesUsedThisMonth,
+                ':zero': 0,
+                ':now': input.now,
+              },
+            },
+          },
+          {
+            Put: {
+              TableName: FREEZE_HISTORY_TABLE,
+              Item: {
+                playerId: input.playerId,
+                date: input.missedDate,
+                source: input.source,
+                createdAt: input.now,
+              },
+              ConditionExpression: 'attribute_not_exists(#date)',
+              ExpressionAttributeNames: { '#date': 'date' },
+            },
+          },
+          {
+            Update: {
+              TableName: ACTIVITY_TABLE,
+              Key: { playerId: input.playerId, date: input.missedDate },
+              UpdateExpression:
+                'SET freezeUsed = :true, streakBroken = :false, ' +
+                'loggedIn = if_not_exists(loggedIn, :false), ' +
+                'played = if_not_exists(played, :false), ' +
+                'loginStreakAtDay = if_not_exists(loginStreakAtDay, :zero), ' +
+                'playStreakAtDay = if_not_exists(playStreakAtDay, :zero), ' +
+                '#timestamp = if_not_exists(#timestamp, :now)',
+              ExpressionAttributeNames: { '#timestamp': 'timestamp' },
+              ExpressionAttributeValues: {
+                ':true': true,
+                ':false': false,
+                ':zero': 0,
+                ':now': input.now,
+              },
+            },
+          },
+        ],
+      }),
+    );
+    return true;
+  } catch (err) {
+    if (isTransactionCancelled(err)) {
+      return false;
+    }
+    throw err;
+  }
+}
+
+/** Inputs to the monthly free-freeze grant (idempotent per month). */
+export interface GrantMonthlyFreezeInput {
+  playerId: string;
+  /** Service-computed post-grant balance. */
+  newFreezesAvailable: number;
+  /** Current UTC `YYYY-MM` to stamp as the last grant month. */
+  yearMonth: string;
+  now: string;
+}
+
+/**
+ * Grant the monthly free freeze (FR-3.1). `SET freezesAvailable = :avail` to the
+ * service-computed value, stamping `lastFreezeGrantDate = :ym`. Guarded by
+ * `lastFreezeGrantDate <> :ym OR attribute_not_exists(lastFreezeGrantDate)` so a
+ * racing duplicate that already granted this month no-ops (idempotent per
+ * calendar month). Returns `false` if the guard failed.
+ */
+export async function grantMonthlyFreeze(input: GrantMonthlyFreezeInput): Promise<boolean> {
+  try {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: PLAYERS_TABLE,
+        Key: { playerId: input.playerId },
+        UpdateExpression:
+          'SET freezesAvailable = :avail, lastFreezeGrantDate = :ym, updatedAt = :now',
+        ConditionExpression:
+          'attribute_not_exists(lastFreezeGrantDate) OR lastFreezeGrantDate <> :ym',
+        ExpressionAttributeValues: {
+          ':avail': input.newFreezesAvailable,
+          ':ym': input.yearMonth,
+          ':now': input.now,
+        },
+      }),
+    );
+    return true;
+  } catch (err) {
+    if (isConditionalCheckFailed(err)) {
+      return false;
+    }
+    throw err;
+  }
+}
+
+/** Inputs to the admin freeze grant (pattern J). */
+export interface GrantFreezeAdminInput {
+  playerId: string;
+  /** Number of freezes to add (validated `>= 1` at the handler edge). */
+  count: number;
+  now: string;
+}
+
+/** The admin grant outcome — the new balance + stamp for the §4.7 response. */
+export interface GrantFreezeAdminResult {
+  freezesAvailable: number;
+  updatedAt: string;
+}
+
+/**
+ * Admin grant: ADD `count` to the freeze balance (DATA_MODEL.md §7 pattern J).
+ * An atomic `ADD` on the freeze BALANCE is explicitly allowed (the no-bare-`ADD`
+ * rule, STND-4, binds the STREAK counters only — an admin grant is not
+ * retry-sensitive per calendar day). The soft `99` cap is enforced as a
+ * `ConditionExpression: attribute_not_exists(freezesAvailable) OR freezesAvailable
+ * <= :capMinusN` — a grant that would exceed the cap FAILS the condition, which
+ * the SDK surfaces as `ConditionalCheckFailedException`; this function lets it
+ * propagate so the handler maps it to `409 Conflict`. Returns the new balance
+ * (from `ReturnValues: ALL_NEW`) for the §4.7 response.
+ */
+export async function grantFreezeAdmin(
+  input: GrantFreezeAdminInput,
+): Promise<GrantFreezeAdminResult> {
+  const result = await docClient.send(
+    new UpdateCommand({
+      TableName: PLAYERS_TABLE,
+      Key: { playerId: input.playerId },
+      UpdateExpression: 'ADD freezesAvailable :n SET updatedAt = :now',
+      ConditionExpression:
+        'attribute_not_exists(freezesAvailable) OR freezesAvailable <= :capMinusN',
+      ExpressionAttributeValues: {
+        ':n': input.count,
+        ':capMinusN': FREEZE_BALANCE_CAP - input.count,
+        ':now': input.now,
+      },
+      ReturnValues: 'ALL_NEW',
+    }),
+  );
+  const attrs = (result.Attributes ?? {}) as Partial<PlayerStreak>;
+  return {
+    freezesAvailable: attrs.freezesAvailable ?? input.count,
+    updatedAt: attrs.updatedAt ?? input.now,
+  };
+}
+
+/**
+ * List a player's consumed-freeze history, newest-first (DATA_MODEL.md §7
+ * pattern I, FR-5.5). A single `Query` on the PK with `ScanIndexForward=false`
+ * returns the date-sorted SK newest-first directly — never a `Scan` (Inv 8,
+ * NFR-8). Empty history → `[]`.
+ */
+export async function queryFreezeHistory(playerId: string): Promise<FreezeRecord[]> {
+  const result = await docClient.send(
+    new QueryCommand({
+      TableName: FREEZE_HISTORY_TABLE,
+      KeyConditionExpression: 'playerId = :p',
+      ExpressionAttributeValues: { ':p': playerId },
+      ScanIndexForward: false,
+    }),
+  );
+  return (result.Items as FreezeRecord[] | undefined) ?? [];
 }
 
 /**

@@ -22,8 +22,16 @@ import {
   resetPlayStreak,
   awardMilestone,
   queryRewards,
+  consumeFreeze,
+  grantFreezeAdmin,
+  queryFreezeHistory,
 } from '../../src/repositories/dynamo.repository';
-import type { ActivityDay, PlayerStreak, RewardRecord } from '../../src/domain/types';
+import type {
+  ActivityDay,
+  FreezeRecord,
+  PlayerStreak,
+  RewardRecord,
+} from '../../src/domain/types';
 
 function samplePlayer(): PlayerStreak {
   return {
@@ -352,5 +360,139 @@ describe('dynamo.repository — queryRewards (pattern H, NFR-8 no Scan)', () => 
   it('returns [] when the player has no rewards', async () => {
     send.mockResolvedValueOnce({ Items: undefined });
     expect(await queryRewards('nobody')).toEqual([]);
+  });
+});
+
+function sampleFreezeRecord(): FreezeRecord {
+  return {
+    playerId: 'p1',
+    date: '2026-06-04',
+    source: 'purchased',
+    createdAt: '2026-06-05T01:00:00.000Z',
+  };
+}
+
+describe('dynamo.repository — consumeFreeze transaction (Inv 5, DATA_MODEL §8)', () => {
+  it('bundles player Update + freeze-history Put + activity write into ONE TransactWriteCommand', async () => {
+    send.mockResolvedValueOnce({});
+    const ok = await consumeFreeze({
+      playerId: 'p1',
+      missedDate: '2026-06-04',
+      source: 'purchased',
+      newFreezesAvailable: 0,
+      newFreezesUsedThisMonth: 1,
+      now: '2026-06-05T09:00:00.000Z',
+    });
+    expect(ok).toBe(true);
+
+    const input = lastInput() as { TransactItems: Array<Record<string, Record<string, unknown>>> };
+    expect(Array.isArray(input.TransactItems)).toBe(true);
+    expect(input.TransactItems).toHaveLength(3);
+
+    const update = input.TransactItems.find((i) => i.Update && i.Update.TableName === 'streaks-players')?.Update;
+    const historyPut = input.TransactItems.find((i) => i.Put && i.Put.TableName === 'streaks-freeze-history')?.Put;
+    const activityWrite =
+      input.TransactItems.find(
+        (i) => (i.Update && i.Update.TableName === 'streaks-activity') || (i.Put && i.Put.TableName === 'streaks-activity'),
+      ) ?? null;
+
+    // (1) player Update — SET the computed balances (no bare ADD on streak
+    // counters; freeze-balance ADD would be fine but we use SET to computed
+    // values), guarded by freezesAvailable > :zero.
+    expect(update).toBeDefined();
+    expect(update?.Key).toMatchObject({ playerId: 'p1' });
+    expect(update?.ConditionExpression).toContain('freezesAvailable > :zero');
+    expect(update?.UpdateExpression).not.toMatch(/\bADD\b.*loginStreak/);
+    expect(update?.UpdateExpression).not.toMatch(/\bADD\b.*playStreak/);
+    expect(update?.ExpressionAttributeValues).toMatchObject({
+      ':avail': 0,
+      ':used': 1,
+      ':zero': 0,
+    });
+
+    // (2) freeze-history Put — idempotent per missed day.
+    expect(historyPut).toBeDefined();
+    expect(historyPut?.ConditionExpression).toContain('attribute_not_exists(#date)');
+    expect(historyPut?.Item).toMatchObject({ playerId: 'p1', date: '2026-06-04', source: 'purchased' });
+
+    // (3) activity write — flips freezeUsed=true for the missed day.
+    expect(activityWrite).not.toBeNull();
+  });
+
+  it('returns false when the transaction is cancelled by a condition (no balance)', async () => {
+    send.mockRejectedValueOnce({ name: 'TransactionCanceledException' });
+    const ok = await consumeFreeze({
+      playerId: 'p1',
+      missedDate: '2026-06-04',
+      source: 'purchased',
+      newFreezesAvailable: 0,
+      newFreezesUsedThisMonth: 1,
+      now: '2026-06-05T09:00:00.000Z',
+    });
+    expect(ok).toBe(false);
+  });
+
+  it('never uses a bare ADD on a streak counter in the consume transaction', async () => {
+    send.mockResolvedValueOnce({});
+    await consumeFreeze({
+      playerId: 'p1',
+      missedDate: '2026-06-04',
+      source: 'free_monthly',
+      newFreezesAvailable: 2,
+      newFreezesUsedThisMonth: 1,
+      now: '2026-06-05T09:00:00.000Z',
+    });
+    const input = lastInput() as { TransactItems: Array<Record<string, Record<string, unknown>>> };
+    for (const item of input.TransactItems) {
+      const expr = (item.Update?.UpdateExpression ?? '') as string;
+      expect(expr).not.toMatch(/ADD\s+loginStreak/);
+      expect(expr).not.toMatch(/ADD\s+playStreak/);
+    }
+  });
+});
+
+describe('dynamo.repository — grantFreezeAdmin (pattern J, cap 99)', () => {
+  it('uses a single UpdateCommand with ADD freezesAvailable :n and the <=99 cap condition', async () => {
+    send.mockResolvedValueOnce({ Attributes: { freezesAvailable: 5, updatedAt: '2026-06-05T09:00:00.000Z' } });
+    const result = await grantFreezeAdmin({ playerId: 'p1', count: 3, now: '2026-06-05T09:00:00.000Z' });
+
+    const input = lastInput();
+    expect(input.TableName).toBe('streaks-players');
+    expect(input.Key).toMatchObject({ playerId: 'p1' });
+    // ADD on the freeze BALANCE is explicitly allowed (pattern J).
+    expect(input.UpdateExpression).toContain('ADD freezesAvailable :n');
+    // cap: only succeeds when absent OR current balance <= 99 - count.
+    expect(input.ConditionExpression).toContain('attribute_not_exists(freezesAvailable)');
+    expect(input.ConditionExpression).toContain('freezesAvailable <= :capMinusN');
+    expect(input.ExpressionAttributeValues).toMatchObject({ ':n': 3, ':capMinusN': 96 });
+    expect(input.ReturnValues).toBe('ALL_NEW');
+    // returns the new balance from the Update's Attributes.
+    expect(result.freezesAvailable).toBe(5);
+  });
+
+  it('propagates a ConditionalCheckFailedException so the handler can map it to 409', async () => {
+    send.mockRejectedValueOnce({ name: 'ConditionalCheckFailedException' });
+    await expect(
+      grantFreezeAdmin({ playerId: 'p1', count: 50, now: '2026-06-05T09:00:00.000Z' }),
+    ).rejects.toMatchObject({ name: 'ConditionalCheckFailedException' });
+  });
+});
+
+describe('dynamo.repository — queryFreezeHistory (pattern I, NFR-8 no Scan)', () => {
+  it('issues a Query (not a Scan) keyed on playerId with ScanIndexForward=false', async () => {
+    send.mockResolvedValueOnce({ Items: [sampleFreezeRecord()] });
+    const history = await queryFreezeHistory('p1');
+    const input = lastInput();
+    expect(input.TableName).toBe('streaks-freeze-history');
+    expect(input.KeyConditionExpression).toContain('playerId = :p');
+    expect(input.ScanIndexForward).toBe(false);
+    expect(input.ExpressionAttributeValues).toMatchObject({ ':p': 'p1' });
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({ date: '2026-06-04', source: 'purchased' });
+  });
+
+  it('returns [] when the player has no freeze history', async () => {
+    send.mockResolvedValueOnce({ Items: undefined });
+    expect(await queryFreezeHistory('nobody')).toEqual([]);
   });
 });
