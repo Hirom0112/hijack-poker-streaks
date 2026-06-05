@@ -138,29 +138,30 @@
 
 ## Slice S6 — Dashboard (React)  *(FR-4 all)*
 
-- [ ] S6-1: Add frontend test deps to `streaks-frontend/package.json` — `vitest ^1.6.0`, `@testing-library/react ^16.0.0`, `@testing-library/jest-dom ^6.4.0`, `jsdom ^24.1.0`, `msw ^2.3.0`, `@testing-library/user-event ^14.5.0` (dev); add `"test":"vitest run"`; vitest config sharing `vite.config.ts`; MSW `setupServer`. *(check: exactly 6 installs; `npm test` runs)*
-- [ ] S6-2: `src/store/streaksApi.ts` — RTK Query `createApi` + `fetchBaseQuery` (baseUrl `VITE_API_URL`, `X-Player-Id` header), endpoints streaks/calendar/rewards/freezes; extend `store.ts` with the api reducer+middleware (keep auth slice); `src/types/streaks.types.ts` mirrors §5.5. *(check: typecheck clean; store has both reducers)*
-- [ ] S6-3: `theme.ts` — dark base + single orange accent (`#FF9800` on `#0D1117` or dossier `#F5923E`; pick one); re-check brand tokens before hardcoding (RESEARCH.md Q6). *(check: `createTheme({palette:{mode:'dark',...}})` applied via `CssBaseline`)*
-- [ ] S6-4 RED: `src/__tests__/StreakCounter.test.tsx` → renders login number + flame and play number + cards; flame `scale` increases with streak (FR-4.1/4.2). *(check: red)*
-- [ ] S6-5 GREEN: `src/components/StreakCounter.tsx` — CSS `transform: scale(1 + min(streak,365... cap)*0.02)` (zero-dep). *(check: green)*
-- [ ] S6-6 RED: `src/__tests__/CalendarHeatMap.test.tsx` → 30 cells; cell color per `activity` value (gray/light-green/dark-green/blue/red); tooltip present (FR-4.3, ADR-5). *(check: red)*
-- [ ] S6-7 GREEN: `src/components/CalendarHeatMap.tsx` — CSS-grid + `sx` 5-state colors + MUI `<Tooltip>`. *(check: green)*
-- [ ] S6-8 RED: `src/__tests__/MilestoneProgress.test.tsx` → renders "Play 2 more days to earn 300 bonus points!" copy + both-axis progress (FR-4.4). *(check: red)*
-- [ ] S6-9 GREEN: `src/components/MilestoneProgress.tsx`. *(check: green)*
-- [ ] S6-10 RED/GREEN: `PersonalBest.tsx` (FR-4.5), `FreezeStatus.tsx` (FR-4.6: count, "freeze active" today, last-used dates), `RewardHistory.tsx` (FR-4.7: date/milestone/type/points) each with an RTL+MSW test. *(check: each test green)*
-- [ ] S6-11: `src/components/StreakDashboard.tsx` replaces `pages/Dashboard.tsx`; wires `useStreaks`/`useCalendar`; check-in affordance posts + refetches; display clamps at 365 (FR-1.7). *(check: typecheck clean)*
-- [ ] S6-12 GATE: **Slice S6 DoD** — `cd streaks-frontend && npm test` green; with API seeded, open `localhost:4001` → both counters (flame grows), populated 30-day heat map (all 5 colors), milestone copy, personal best, freeze status, reward history, visibly on-brand. Write `SLICE_REPORTS/slice-6.md` with an observed-state/screenshot note.
+- [x] S6-1: Add frontend test deps to `streaks-frontend/package.json` — `vitest ^1.6.0`, `@testing-library/react ^16.0.0`, `@testing-library/jest-dom ^6.4.0`, `jsdom ^24.1.0`, `msw ^2.3.0`, `@testing-library/user-event ^14.5.0` (dev); add `"test":"vitest run"`; vitest config sharing `vite.config.ts`; MSW `setupServer`. *(check: exactly 6 installs; `npm test` runs)*
+- [x] S6-2: `src/store/streaksApi.ts` — RTK Query `createApi` + `fetchBaseQuery` (baseUrl `VITE_API_URL`, `X-Player-Id` header), endpoints streaks/calendar/rewards/freezes; extend `store.ts` with the api reducer+middleware (keep auth slice); `src/types/streaks.types.ts` mirrors §5.5. *(check: typecheck clean; store has both reducers)*
+- [x] S6-3: `theme.ts` — dark base + single orange accent (`#FF9800` on `#0D1117` or dossier `#F5923E`; pick one); re-check brand tokens before hardcoding (RESEARCH.md Q6). *(check: `createTheme({palette:{mode:'dark',...}})` applied via `CssBaseline`)*
+- [x] S6-4 RED: `src/__tests__/StreakCounter.test.tsx` → renders login number + flame and play number + cards; flame `scale` increases with streak (FR-4.1/4.2). *(check: red)*
+- [x] S6-5 GREEN: `src/components/StreakCounter.tsx` — CSS `transform: scale(1 + min(streak,365... cap)*0.02)` (zero-dep). *(check: green)*
+- [x] S6-6 RED: `src/__tests__/CalendarHeatMap.test.tsx` → 30 cells; cell color per `activity` value (gray/light-green/dark-green/blue/red); tooltip present (FR-4.3, ADR-5). *(check: red)*
+- [x] S6-7 GREEN: `src/components/CalendarHeatMap.tsx` — CSS-grid + `sx` 5-state colors + MUI `<Tooltip>`. *(check: green)*
+- [x] S6-8 RED: `src/__tests__/MilestoneProgress.test.tsx` → renders "Play 2 more days to earn 300 bonus points!" copy + both-axis progress (FR-4.4). *(check: red)*
+- [x] S6-9 GREEN: `src/components/MilestoneProgress.tsx`. *(check: green)*
+- [x] S6-10 RED/GREEN: `PersonalBest.tsx` (FR-4.5), `FreezeStatus.tsx` (FR-4.6: count, "freeze active" today, last-used dates), `RewardHistory.tsx` (FR-4.7: date/milestone/type/points) each with an RTL+MSW test. *(check: each test green)*
+- [x] S6-11: `src/components/StreakDashboard.tsx` replaces `pages/Dashboard.tsx`; wires `useStreaks`/`useCalendar`; check-in affordance posts + refetches; display clamps at 365 (FR-1.7). *(check: typecheck clean)*
+- [x] S6-12 GATE: **Slice S6 DoD** — `cd streaks-frontend && npm test` green; with API seeded, open `localhost:4001` → both counters (flame grows), populated 30-day heat map (all 5 colors), milestone copy, personal best, freeze status, reward history, visibly on-brand. Write `SLICE_REPORTS/slice-6.md` with an observed-state/screenshot note.
 
 ---
 
 ## Slice S7 — Hardening + docs  *(NFR-4/6/7; SM-4) — CORE SHIPS HERE*
 
-- [ ] S7-1: `src/middleware/error.ts` — single normalizer emitting `{error,message}` with §3 codes: `BadRequest`/400, `Unauthorized`/401, `Forbidden`/403, `NotFound`/404, `Conflict`/409, `InternalError`/**500** (DB-down → 500, ASSUMPTIONS A-3); a test per code path. *(check: each error path returns the documented code+shape)*
+- [ ] S7-1: `src/middleware/error.ts` — single normalizer emitting `{error,message}` with §3 codes: `BadRequest`/400, `Unauthorized`/401, `Forbidden`/403, `NotFound`/404, `Conflict`/409, `InternalError`/**500** (DB-down → 500, ASSUMPTIONS A-3); a test per code path. **Includes the unmatched-route 404:** replace `handler.ts`'s `{error:'Not found'}` catch-all with the canonical `{error:'NotFound', message}` shape, and add an integration test asserting an unknown path returns `404 {error:'NotFound'}` (review finding, S6). *(check: each error path returns the documented code+shape; unknown route → `404 NotFound`)*
 - [ ] S7-2: Logging sweep — `winston` `playerId`+`correlationId` (middleware-generated, threaded) at check-in/hand-completed/reward-award/freeze-consume/admin-grant; document metric hooks (ARCHITECTURE.md §8). *(check: STND-3 grep clean; a write path logs with correlationId)*
 - [ ] S7-3: Confirm the check-in → streak → milestone integration green end-to-end; `npm test` green in **one** command per package (NFR-4/SM-2). *(check: both `npm test` green)*
 - [ ] S7-4: README — option C + why (frame on the live "$100K Hot Streak Freeroll", RESEARCH.md Q6); setup (`docker compose --profile streaks up`, `node scripts/seed-streaks.js`, `git config core.hooksPath .githooks`); implemented-vs-deferred; trade-offs; "what we'd do next" (Could-Haves). *(check: a fresh reader runs it to a rendered seeded dashboard)*
 - [ ] S7-5: Polish `API_CONTRACT.md` against shipped routes; reconcile ASSUMPTIONS A-1/A-2/A-3 into the docs they correct (TECH_STACK §4, API_CONTRACT, ARCHITECTURE §7); confirm ≥4 ADRs exist (ARCHITECTURE §11). *(check: A-n entries marked reconciled)*
 - [ ] S7-6: SM-5 invariant assertions present — dup same-day no double-increment; 2-day gap + 1 freeze resets; milestone once per instance; calendar month = one Query. *(check: 4 assertions exist and pass)*
+- [ ] S7-8: Remove backend jest `--forceExit` and fix the underlying open handle (close the `ddbClient`/`docClient` + any supertest server in `afterAll`; the integration tests log an open-handle warning) so `npm test` exits cleanly on its own. If a handle genuinely can't be closed (DynamoDB Local keep-alive), document why and prefer `--detectOpenHandles`-verified cleanup over a blanket force-exit (review finding, S6). *(check: `npm test` exits 0 with no `--forceExit` and no open-handle warning, OR a documented justification)*
 - [ ] S7-7 GATE: **Slice S7 DoD** — `npm test` green in both packages; STND-3/STND-4 greps clean; README executes top-to-bottom to a seeded dashboard. Write `SLICE_REPORTS/slice-7.md` — **CORE-SHIPPABLE CHECKPOINT.**
 
 ---
