@@ -343,6 +343,10 @@ services:
       DYNAMODB_ENDPOINT: http://dynamodb-local:8000
       STREAKS_PLAYERS_TABLE: streaks-players
       STREAKS_ACTIVITY_TABLE: streaks-activity
+      STREAKS_REWARDS_TABLE: streaks-rewards
+      STREAKS_FREEZE_HISTORY_TABLE: streaks-freeze-history
+      INTERNAL_API_SECRET: dev-internal-secret
+      FREEZE_CRON_ENABLED: "false"
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: local
       AWS_SECRET_ACCESS_KEY: local
