@@ -6,7 +6,7 @@
   "scripts": {
     "start": "npx serverless offline --config serverless.offline.yml --host 0.0.0.0",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.500.0",
@@ -37,6 +37,9 @@
     "testEnvironment": "node",
     "setupFiles": [
       "<rootDir>/jest.setup.ts"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.teardown.ts"
     ],
     "moduleDirectories": [
       "node_modules",
