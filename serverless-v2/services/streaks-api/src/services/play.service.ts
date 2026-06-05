@@ -42,6 +42,7 @@ export function applyHandCompleted(
   playerId: string,
   day: string,
   yesterday: string,
+  protectedByFreeze = false,
 ): HandCompletedResult {
   const now = nowIso();
 
@@ -60,13 +61,14 @@ export function applyHandCompleted(
   // Decide the play transition.
   let nextPlay: number;
   let broken: boolean;
-  if (player.lastPlayDate === yesterday) {
+  if (player.lastPlayDate === yesterday || protectedByFreeze) {
+    // Consecutive day, OR a freeze covered the single missed day (Inv 5 — one
+    // freeze protects BOTH axes for that day) ⇒ advance.
     nextPlay = player.playStreak + 1;
     broken = false;
   } else {
-    // Gap ≥ 2 (or some prior date that is not yesterday) with no freeze in S2
-    // ⇒ reset to 1 and mark the day as a streak break on the play axis.
-    // (Freeze logic is S4.)
+    // Gap ≥ 2 with no protecting freeze ⇒ reset to 1 and mark the streak break
+    // on the play axis.
     nextPlay = 1;
     broken = true;
   }

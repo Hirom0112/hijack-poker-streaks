@@ -30,12 +30,18 @@ export interface LoginCheckInResult {
  * Apply a login check-in. `player` is the loaded record, or `null` for a
  * never-seen player. `today`/`yesterday` are UTC `YYYY-MM-DD` strings computed
  * once at the handler edge.
+ *
+ * `protectedByFreeze` (S4, Inv 5): when the freeze lazy-eval (run at the top of
+ * the handler, BEFORE this transition) consumed a freeze to cover the single
+ * missed day, the gap is treated as if `last` were yesterday — the streak
+ * ADVANCES (9 → 10) instead of resetting, and today's row is `broken:false`.
  */
 export function applyLoginCheckIn(
   player: PlayerStreak | null,
   playerId: string,
   today: string,
   yesterday: string,
+  protectedByFreeze = false,
 ): LoginCheckInResult {
   const now = nowIso();
 
@@ -54,12 +60,14 @@ export function applyLoginCheckIn(
   // Decide the login transition.
   let nextLogin: number;
   let broken: boolean;
-  if (player.lastLoginDate === yesterday) {
+  if (player.lastLoginDate === yesterday || protectedByFreeze) {
+    // Consecutive day, OR a freeze covered the single missed day (Inv 5) ⇒
+    // advance the streak from where it stood.
     nextLogin = player.loginStreak + 1;
     broken = false;
   } else {
-    // Gap ≥ 2 (or some prior date that is not yesterday) with no freeze in S1
-    // ⇒ reset to 1 and mark the day as a streak break (FR-1.5).
+    // Gap ≥ 2 (or some prior date that is not yesterday) with no protecting
+    // freeze ⇒ reset to 1 and mark the day as a streak break (FR-1.5).
     nextLogin = 1;
     broken = true;
   }

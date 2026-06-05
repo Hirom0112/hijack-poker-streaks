@@ -7,7 +7,9 @@ import { internalAuthMiddleware } from './src/middleware/internalAuth';
 import { checkInHandler } from './src/handlers/check-in';
 import { getStreaksHandler } from './src/handlers/streaks';
 import { getRewardsHandler } from './src/handlers/rewards';
+import { getFreezesHandler } from './src/handlers/freezes';
 import { handCompletedHandler } from './src/handlers/internal';
+import { grantFreezesHandler } from './src/handlers/admin';
 
 export const app = express();
 
@@ -34,15 +36,22 @@ app.use('/api/v1/health', healthRoute);
 app.get('/api/v1/player/streaks', authMiddleware, getStreaksHandler);
 app.post('/api/v1/player/streaks/check-in', authMiddleware, checkInHandler);
 app.get('/api/v1/player/streaks/rewards', authMiddleware, getRewardsHandler);
+app.get('/api/v1/player/streaks/freezes', authMiddleware, getFreezesHandler);
 app.get('/api/v1/streaks', authMiddleware, getStreaksHandler);
 app.post('/api/v1/streaks/check-in', authMiddleware, checkInHandler);
 app.get('/api/v1/streaks/rewards', authMiddleware, getRewardsHandler);
+app.get('/api/v1/streaks/freezes', authMiddleware, getFreezesHandler);
 
 // Internal server-to-server route (FR-6) — guarded by the shared-secret
 // `internalAuthMiddleware` ONLY (Inv 10, FR-6.3). Deliberately OUTSIDE the
 // player-auth group: it never accepts `X-Player-Id`; the target player is in
 // the body. Must never sit behind `authMiddleware`.
 app.post('/internal/streaks/hand-completed', internalAuthMiddleware, handCompletedHandler);
+
+// Admin route (FR-3.3) — guarded by `internalAuthMiddleware` (X-Internal-Secret)
+// ONLY (Inv 10). Never sits behind player auth; the target player is in the body
+// (never `X-Player-Id`). A missing/invalid secret → 403 before the handler runs.
+app.post('/api/v1/admin/streaks/freezes/grant', internalAuthMiddleware, grantFreezesHandler);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

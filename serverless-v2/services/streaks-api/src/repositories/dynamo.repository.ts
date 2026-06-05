@@ -88,14 +88,23 @@ export interface AdvanceLoginInput {
   today: string;
   yesterday: string;
   now: string;
+  /**
+   * The date the condition must match as the prior `lastLoginDate`. Defaults to
+   * `yesterday` (the consecutive-day advance). On a freeze-protected advance the
+   * caller passes the REAL prior `lastLoginDate` (2 days ago) so the conditional
+   * advance still fires after the freeze preserved the streak (Inv 5).
+   */
+  expectedLastLoginDate?: string;
 }
 
 /**
  * Advance the login streak by a single conditional UpdateItem. The condition
- * `lastLoginDate = :yesterday` guarantees the streak advances exactly once even
- * under retry (Inv 3, RESEARCH.md Q3). The counter is written with
- * `SET loginStreak = :n` to the service-computed value — NEVER a bare `ADD`.
- * Returns `true` on success, `false` if the condition failed (already advanced).
+ * `lastLoginDate = :expected` guarantees the streak advances exactly once even
+ * under retry (Inv 3, RESEARCH.md Q3) — `:expected` is `yesterday` for the
+ * normal consecutive advance, or the real prior date on a freeze-protected
+ * advance. The counter is written with `SET loginStreak = :n` to the
+ * service-computed value — NEVER a bare `ADD`. Returns `true` on success,
+ * `false` if the condition failed (already advanced).
  */
 export async function advanceLoginStreak(input: AdvanceLoginInput): Promise<boolean> {
   try {
@@ -110,7 +119,7 @@ export async function advanceLoginStreak(input: AdvanceLoginInput): Promise<bool
           ':n': input.loginStreak,
           ':best': input.bestLoginStreak,
           ':today': input.today,
-          ':yesterday': input.yesterday,
+          ':yesterday': input.expectedLastLoginDate ?? input.yesterday,
           ':now': input.now,
         },
       }),
@@ -238,6 +247,12 @@ export interface AdvancePlayInput {
   day: string;
   yesterday: string;
   now: string;
+  /**
+   * The date the condition must match as the prior `lastPlayDate`. Defaults to
+   * `yesterday`; on a freeze-protected advance the caller passes the REAL prior
+   * `lastPlayDate` so the conditional advance still fires (Inv 5).
+   */
+  expectedLastPlayDate?: string;
 }
 
 /**
@@ -245,8 +260,9 @@ export interface AdvancePlayInput {
  * `advanceLoginStreak` on the PLAY axis (FR-1.3 independence — touches only
  * playStreak/bestPlayStreak/lastPlayDate). The condition
  * `lastPlayDate = :yesterday` guarantees the streak advances exactly once even
- * under retry (Inv 3). The counter is `SET playStreak = :n` — NEVER a bare
- * `ADD`. Returns `false` if the condition failed (already advanced).
+ * under retry (Inv 3) — `:yesterday` is the consecutive prior day, or the real
+ * prior date on a freeze-protected advance. The counter is `SET playStreak = :n`
+ * — NEVER a bare `ADD`. Returns `false` if the condition failed (already advanced).
  */
 export async function advancePlayStreak(input: AdvancePlayInput): Promise<boolean> {
   try {
@@ -261,7 +277,7 @@ export async function advancePlayStreak(input: AdvancePlayInput): Promise<boolea
           ':n': input.playStreak,
           ':best': input.bestPlayStreak,
           ':day': input.day,
-          ':yesterday': input.yesterday,
+          ':yesterday': input.expectedLastPlayDate ?? input.yesterday,
           ':now': input.now,
         },
       }),

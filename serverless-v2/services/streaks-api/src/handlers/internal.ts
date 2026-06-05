@@ -23,14 +23,17 @@ import type { Request, Response } from 'express';
 import {
   advancePlayStreak,
   awardMilestone,
+  consumeFreeze,
   createPlayer,
   getPlayer,
+  grantMonthlyFreeze,
   mergePlayed,
   resetPlayStreak,
 } from '../repositories/dynamo.repository';
 import { applyHandCompleted } from '../services/play.service';
+import { evaluateFreeze } from '../services/freeze.service';
 import { detectMilestone } from '../services/reward.service';
-import { isIsoInstant, nowIso, utcDay, yesterday as priorDay } from '../lib/utc';
+import { isIsoInstant, nowIso, utcDay, yearMonth, yesterday as priorDay } from '../lib/utc';
 import { logger } from '../../shared/config/logger';
 import type { HandCompletedResponse, PlayerStreak, RewardRecord } from '../domain/types';
 
@@ -69,11 +72,45 @@ export async function handCompletedHandler(req: Request, res: Response): Promise
       return;
     }
 
-    const result = applyHandCompleted(existing, playerId, day, yesterday);
+    // Lazy freeze evaluation runs FIRST on the PLAY axis (Inv 5, ARCHITECTURE
+    // §5c): grant the monthly freeze if due, then consume one to cover a single
+    // missed day — BEFORE the play transition decides advance vs reset. A freeze
+    // protects BOTH axes; whichever event (check-in or hand) lands first writes
+    // the per-day freeze-history row and the other no-ops on the same date.
+    const freeze =
+      existing !== null ? evaluateFreeze(existing, existing.lastPlayDate, day) : null;
+    let protectedByFreeze = false;
+    if (freeze !== null && existing !== null) {
+      if (freeze.grantedMonthly) {
+        await grantMonthlyFreeze({
+          playerId,
+          newFreezesAvailable: existing.freezesAvailable + 1,
+          yearMonth: yearMonth(day),
+          now,
+        });
+      }
+      if (freeze.freezeConsumed && freeze.missedDate !== undefined && freeze.freezeSource !== undefined) {
+        protectedByFreeze = await consumeFreeze({
+          playerId,
+          missedDate: freeze.missedDate,
+          source: freeze.freezeSource,
+          newFreezesAvailable: freeze.newFreezesAvailable,
+          newFreezesUsedThisMonth: freeze.newFreezesUsedThisMonth,
+          now,
+        });
+      }
+    }
+
+    const result = applyHandCompleted(existing, playerId, day, yesterday, protectedByFreeze);
     if (result.activity === null) {
       res.status(200).json(noOpResponse(playerId, day, result.player));
       return;
     }
+
+    // The conditional advance must match the REAL prior date on a protected
+    // advance: the missed-gap `lastPlayDate`, not yesterday.
+    const expectedLastPlayDate =
+      protectedByFreeze && existing !== null ? existing.lastPlayDate ?? undefined : undefined;
 
     // Did this advance land exactly on a play milestone? (Reset → 1 and a new
     // player's first → 1 are never rungs, so this is null on those paths.)
@@ -90,7 +127,9 @@ export async function handCompletedHandler(req: Request, res: Response): Promise
           axis: 'play',
           isNewPlayer: existing === null,
           date: day,
-          yesterday,
+          // On a protected advance the award's conditional Update must match the
+          // REAL prior `lastPlayDate` (the missed-gap date), not yesterday.
+          yesterday: expectedLastPlayDate ?? yesterday,
           playStreak: result.player.playStreak,
           bestPlayStreak: result.player.bestPlayStreak,
         },
@@ -136,7 +175,7 @@ export async function handCompletedHandler(req: Request, res: Response): Promise
       return;
     }
 
-    await persistPlayer(existing, result.player, day, yesterday, now);
+    await persistPlayer(existing, result.player, day, yesterday, now, expectedLastPlayDate);
 
     logger.info('hand-completed advanced play streak', {
       playerId,
@@ -153,13 +192,18 @@ export async function handCompletedHandler(req: Request, res: Response): Promise
   }
 }
 
-/** Persist the advanced player record via the right play-axis conditional write. */
+/**
+ * Persist the advanced player record via the right play-axis conditional write.
+ * `expectedLastPlayDate` overrides the advance condition's prior date on a
+ * freeze-protected advance (the gap date, not yesterday).
+ */
 async function persistPlayer(
   existing: PlayerStreak | null,
   next: PlayerStreak,
   day: string,
   yesterday: string,
   now: string,
+  expectedLastPlayDate?: string,
 ): Promise<void> {
   if (existing === null) {
     await createPlayer(next);
@@ -172,8 +216,8 @@ async function persistPlayer(
     day,
     now,
   };
-  if (existing.lastPlayDate === yesterday) {
-    await advancePlayStreak({ ...common, yesterday });
+  if (existing.lastPlayDate === yesterday || expectedLastPlayDate !== undefined) {
+    await advancePlayStreak({ ...common, yesterday, expectedLastPlayDate });
   } else {
     await resetPlayStreak(common);
   }

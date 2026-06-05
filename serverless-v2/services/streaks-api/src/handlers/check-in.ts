@@ -17,15 +17,18 @@ import type { Request, Response } from 'express';
 import {
   advanceLoginStreak,
   awardMilestone,
+  consumeFreeze,
   createPlayer,
   getPlayer,
+  grantMonthlyFreeze,
   putActivity,
   resetLoginStreak,
 } from '../repositories/dynamo.repository';
 import { applyLoginCheckIn } from '../services/streak.service';
+import { evaluateFreeze, type FreezeDecision } from '../services/freeze.service';
 import { detectMilestone } from '../services/reward.service';
 import { toStreaksResponse, zeroStreaksResponse } from './presenter';
-import { nowIso, utcDay, yesterday as priorDay } from '../lib/utc';
+import { nowIso, utcDay, yearMonth, yesterday as priorDay } from '../lib/utc';
 import { logger } from '../../shared/config/logger';
 import type { CheckInResponse, PlayerStreak, RewardRecord } from '../domain/types';
 
@@ -50,13 +53,54 @@ export async function checkInHandler(req: Request, res: Response): Promise<void>
       return;
     }
 
-    const result = applyLoginCheckIn(existing, playerId, today, yesterday);
+    // Lazy freeze evaluation runs FIRST (Inv 5, ARCHITECTURE §5c): grant the
+    // monthly free freeze if due, then detect a missed day and consume a freeze
+    // if it protects — BEFORE the streak transition decides advance vs reset.
+    const freeze =
+      existing !== null ? evaluateFreeze(existing, existing.lastLoginDate, today) : null;
+    let protectedByFreeze = false;
+    if (freeze !== null && existing !== null) {
+      // (1) Monthly grant (idempotent per YYYY-MM).
+      if (freeze.grantedMonthly) {
+        await grantMonthlyFreeze({
+          playerId,
+          newFreezesAvailable: existing.freezesAvailable + 1,
+          yearMonth: yearMonth(today),
+          now,
+        });
+      }
+      // (2) Consume one freeze to protect the single missed day. The transaction
+      // covers BOTH axes (it only touches the shared freeze balance + the missed
+      // day's row); the play axis reads the same protection on its next event.
+      if (freeze.freezeConsumed && freeze.missedDate !== undefined && freeze.freezeSource !== undefined) {
+        protectedByFreeze = await consumeFreeze({
+          playerId,
+          missedDate: freeze.missedDate,
+          source: freeze.freezeSource,
+          newFreezesAvailable: freeze.newFreezesAvailable,
+          newFreezesUsedThisMonth: freeze.newFreezesUsedThisMonth,
+          now,
+        });
+      }
+    }
+
+    // (3) THEN the streak transition, on the possibly-protected state.
+    const result = applyLoginCheckIn(existing, playerId, today, yesterday, protectedByFreeze);
+    // Fold the post-grant/post-consume freeze balances onto the player so the
+    // response (and any persisted record) reflects the freeze decision.
+    applyFreezeToPlayer(result.player, freeze, protectedByFreeze);
     // The service only returns streakAdvanced:false for the same-day path,
     // already handled above; here it is always an advancing result.
     if (result.activity === null) {
       res.status(200).json(noOpResponse(playerId, result.player));
       return;
     }
+    result.activity.freezeUsed = protectedByFreeze;
+
+    // The conditional advance must match the REAL prior date: on a protected
+    // advance that is the missed-gap `lastLoginDate`, not yesterday.
+    const expectedLastLoginDate =
+      protectedByFreeze && existing !== null ? existing.lastLoginDate ?? undefined : undefined;
 
     // Did this advance land exactly on a milestone rung? (Reset → 1 and a new
     // player's first → 1 are never rungs, so this is null on those paths.)
@@ -73,7 +117,9 @@ export async function checkInHandler(req: Request, res: Response): Promise<void>
           axis: 'login',
           isNewPlayer: existing === null,
           date: today,
-          yesterday,
+          // On a protected advance the award's conditional Update must match the
+          // REAL prior `lastLoginDate` (the missed-gap date), not yesterday.
+          yesterday: expectedLastLoginDate ?? yesterday,
           loginStreak: result.player.loginStreak,
           bestLoginStreak: result.player.bestLoginStreak,
         },
@@ -92,7 +138,7 @@ export async function checkInHandler(req: Request, res: Response): Promise<void>
         points: reward.points,
         rewardId: reward.rewardId,
       });
-      res.status(200).json(advancedResponse(playerId, result.player, reward));
+      res.status(200).json(advancedResponse(playerId, result.player, reward, protectedByFreeze));
       return;
     }
 
@@ -107,22 +153,52 @@ export async function checkInHandler(req: Request, res: Response): Promise<void>
       return;
     }
 
-    await persistPlayer(existing, result.player, today, yesterday, now);
+    await persistPlayer(existing, result.player, today, yesterday, now, expectedLastLoginDate);
 
-    res.status(200).json(advancedResponse(playerId, result.player, null));
+    res.status(200).json(advancedResponse(playerId, result.player, null, protectedByFreeze));
   } catch (err) {
     logger.error('check-in failed', { playerId, err });
     res.status(500).json({ error: 'InternalError', message: 'Check-in failed' });
   }
 }
 
-/** Persist the advanced player record via the right conditional write. */
+/**
+ * Fold the freeze decision's post-grant/post-consume balances onto the player
+ * record so the response reflects them. The streak service carries the freeze
+ * fields through untouched (it owns the login axis only); this is the single
+ * place the freeze balances are reconciled onto the outgoing player.
+ */
+function applyFreezeToPlayer(
+  player: PlayerStreak,
+  freeze: FreezeDecision | null,
+  protectedByFreeze: boolean,
+): void {
+  if (freeze === null) {
+    return;
+  }
+  // Always reflect the monthly grant. The consume's balance decrement only
+  // applies when the consume transaction actually committed.
+  if (protectedByFreeze) {
+    player.freezesAvailable = freeze.newFreezesAvailable;
+    player.freezesUsedThisMonth = freeze.newFreezesUsedThisMonth;
+  } else if (freeze.grantedMonthly) {
+    player.freezesAvailable = freeze.newFreezesAvailable + (freeze.freezeConsumed ? 1 : 0);
+  }
+  player.lastFreezeGrantDate = freeze.newLastFreezeGrantDate;
+}
+
+/**
+ * Persist the advanced player record via the right conditional write.
+ * `expectedLastLoginDate` overrides the advance condition's prior date on a
+ * freeze-protected advance (the gap date, not yesterday).
+ */
 async function persistPlayer(
   existing: PlayerStreak | null,
   next: PlayerStreak,
   today: string,
   yesterday: string,
   now: string,
+  expectedLastLoginDate?: string,
 ): Promise<void> {
   if (existing === null) {
     await createPlayer(next);
@@ -135,8 +211,8 @@ async function persistPlayer(
     today,
     now,
   };
-  if (existing.lastLoginDate === yesterday) {
-    await advanceLoginStreak({ ...common, yesterday });
+  if (existing.lastLoginDate === yesterday || expectedLastLoginDate !== undefined) {
+    await advanceLoginStreak({ ...common, yesterday, expectedLastLoginDate });
   } else {
     await resetLoginStreak(common);
   }
@@ -151,12 +227,13 @@ function advancedResponse(
   playerId: string,
   player: PlayerStreak,
   reward: RewardRecord | null,
+  freezeConsumed: boolean,
 ): CheckInResponse {
   return {
     playerId,
     checkedInToday: true,
     streakAdvanced: true,
-    freezeConsumed: false,
+    freezeConsumed,
     streaks: toStreaksResponse(player),
     milestoneEarned: reward,
   };
