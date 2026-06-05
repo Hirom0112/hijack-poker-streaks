@@ -191,9 +191,15 @@
 
 ## Slice S10 — Bonus: CI  *(NFR-10)*
 
-- [ ] S10-1: `.github/workflows/ci.yml` — on push/PR, `actions/setup-node@v4` Node 22, install + `tsc --noEmit` + `streaks-api` Jest + `streaks-frontend` Vitest (ARCHITECTURE.md §10). No new npm deps. *(check: workflow parses; both suites invoked)*
-- [ ] S10-2: Ensure parity with `.githooks/pre-push` (red CI == red push, CLAUDE.md §4). *(check: same commands in both)*
-- [ ] S10-3 GATE: **Slice S10 DoD** — workflow valid; both suites run; a push shows green steps. Write `SLICE_REPORTS/slice-10.md`.
+- [x] S10-1: `.github/workflows/ci.yml` — on push/PR, `actions/setup-node@v4` Node 22, install + `tsc --noEmit` + `streaks-api` Jest + `streaks-frontend` Vitest (ARCHITECTURE.md §10). No new npm deps. *(check: workflow parses; both suites invoked)*
+- [x] S10-2: Ensure parity with `.githooks/pre-push` (red CI == red push, CLAUDE.md §4). *(check: same commands in both)*
+- [x] S10-3 GATE: **Slice S10 DoD** — workflow valid; both suites run; a push shows green steps. Write `SLICE_REPORTS/slice-10.md`.
+
+---
+
+## Post-build backlog (logged during the build)
+
+- [ ] PI-1: `scripts/init-dynamodb.sh` creates only 2 of the 4 streaks tables — add `streaks-rewards` + `streaks-freeze-history` (frozen key schema) so a standalone run matches docker-compose/CI. *(check: the script creates all 4)*
 
 ---
 
