@@ -15,6 +15,15 @@ provider:
     STREAKS_FREEZE_HISTORY_TABLE: streaks-freeze-history
     INTERNAL_API_SECRET: dev-internal-secret
     FREEZE_CRON_ENABLED: false
+    # DynamoDB Local wiring. serverless-offline overrides the process AWS creds
+    # at invocation, so declare them here (authoritative for the lambda) — the
+    # shared DocumentClient (shared/config/dynamo.js) reads these to point at
+    # DynamoDB Local with the literal local/local creds (Inv 12). Falls back to
+    # the container env when set.
+    DYNAMODB_ENDPOINT: ${env:DYNAMODB_ENDPOINT, 'http://localhost:8000'}
+    AWS_ACCESS_KEY_ID: ${env:AWS_ACCESS_KEY_ID, 'local'}
+    AWS_SECRET_ACCESS_KEY: ${env:AWS_SECRET_ACCESS_KEY, 'local'}
+    AWS_REGION: ${env:AWS_REGION, 'us-east-1'}
 
 functions:
   api:
@@ -35,6 +44,10 @@ custom:
     platform: node
     exclude:
       - '@aws-sdk/*'
+      # winston is pulled in via shared/config/logger.js (require('winston')).
+      # esbuild can't resolve it from the shared dir, so keep it external; it
+      # resolves from streaks-api/node_modules at runtime.
+      - 'winston'
   serverless-offline:
     httpPort: 5001
     lambdaPort: 5003

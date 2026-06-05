@@ -30,3 +30,7 @@ custom:
     platform: node
     exclude:
       - '@aws-sdk/*'
+      # winston is pulled in via shared/config/logger.js (require('winston')).
+      # esbuild can't resolve it from the shared dir, so keep it external; it
+      # resolves from streaks-api/node_modules at runtime.
+      - 'winston'
