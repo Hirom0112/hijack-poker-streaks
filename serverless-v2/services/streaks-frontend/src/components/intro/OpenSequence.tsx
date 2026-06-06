@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Button, IconButton, Tooltip } from '@mui/material';
+import { Box, IconButton, Tooltip } from '@mui/material';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import LoginScreen from '../LoginScreen';
@@ -20,9 +20,10 @@ import { useIntroSound } from './useIntroSound';
  *           the EXISTING art-deco LoginScreen and navigate('/login', replace).
  *
  * LoginScreen is rendered UNDER the cinematic the whole time and revealed by
- * fading the intro layers out (option A). Skip (button + Esc) jumps straight to
- * login (no run-off). prefers-reduced-motion shows the static poster (no
- * autoplay video) + the logo end-state, then tap → login.
+ * fading the intro layers out (option A). There is no visible Skip button —
+ * advancing is via tap-anywhere / Enter / Space (and Esc as a silent
+ * accelerator straight to login). prefers-reduced-motion shows the static
+ * poster (no autoplay video) + the logo end-state, then tap → login.
  */
 export default function OpenSequence() {
   const navigate = useNavigate();
@@ -47,7 +48,7 @@ export default function OpenSequence() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq.exiting]);
 
-  // Esc → skip; Enter/Space → tap (when awaiting input).
+  // Esc → silent skip accelerator (no visible Skip button); Enter/Space → tap.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -90,8 +91,8 @@ export default function OpenSequence() {
           pointerEvents: introFadingOut ? 'none' : 'auto',
         }}
       >
-        {/* Beats 1 & 4 — ONE horse-video layer: loops during idle/logo/await,
-            then takes the recede transform on exit (no second <video>). */}
+        {/* Beats 1 & 4 — ONE horse-video layer: gallops in once & holds during
+            idle/logo/await, then replays + recedes on exit (no second <video>). */}
         <HorseGallop exiting={seq.exiting} motionless={seq.reducedMotion} />
 
         {/* Beat 2/3 — logo + chip + tap prompt, over the galloping horse. */}
@@ -107,19 +108,11 @@ export default function OpenSequence() {
         )}
       </Box>
 
-      {/* Controls: Skip (top-right) + sound toggle (just left of it). */}
+      {/* Sound toggle — top-LEFT (no visible Skip button; tap/Esc advance). */}
       {!seq.exiting && (
         <Box
-          sx={{
-            position: 'absolute',
-            top: 20,
-            right: 20,
-            zIndex: 10,
-            display: 'flex',
-            gap: 1,
-            alignItems: 'center',
-          }}
-          // Don't let the controls trigger the tap-anywhere handler.
+          sx={{ position: 'absolute', top: 20, left: 20, zIndex: 10 }}
+          // Don't let the control trigger the tap-anywhere handler.
           onClick={(e) => e.stopPropagation()}
         >
           <Tooltip title={sound.enabled ? 'Sound on' : 'Sound off'}>
@@ -137,19 +130,6 @@ export default function OpenSequence() {
               {sound.enabled ? <VolumeUpIcon /> : <VolumeOffIcon />}
             </IconButton>
           </Tooltip>
-
-          <Button
-            onClick={seq.skip}
-            variant="outlined"
-            sx={{
-              color: '#F3E6CC',
-              borderColor: 'rgba(243,230,204,0.5)',
-              backdropFilter: 'blur(4px)',
-              '&:hover': { borderColor: '#F3E6CC', bgcolor: 'rgba(0,0,0,0.3)' },
-            }}
-          >
-            Skip
-          </Button>
         </Box>
       )}
     </Box>

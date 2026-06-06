@@ -74,12 +74,13 @@ describe('OpenSequence (interactive BL-1)', () => {
     window.HTMLMediaElement.prototype.pause = vi.fn();
   });
 
-  it('renders Skip and a sound toggle', () => {
+  it('renders the sound toggle but NO Skip button', () => {
     renderSequence();
-    expect(screen.getByRole('button', { name: /Skip/i })).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /intro sound/i })
     ).toBeInTheDocument();
+    // Skip is removed — advancing is via tap-anywhere / Enter / Space / Esc.
+    expect(screen.queryByRole('button', { name: /Skip/i })).toBeNull();
   });
 
   it('starts with ONE gallop video that plays ONCE (no loop) from load', () => {
@@ -201,10 +202,11 @@ describe('OpenSequence (interactive BL-1)', () => {
     }
   });
 
-  it('Skip jumps straight to /login', async () => {
+  it('Esc is a silent skip accelerator → jumps straight to /login', async () => {
     const user = userEvent.setup();
     renderSequence();
-    await user.click(screen.getByRole('button', { name: /Skip/i }));
+    // No visible Skip button, but Esc still jumps to login immediately.
+    await user.keyboard('{Escape}');
     expect(await screen.findByText('LOGIN ROUTE')).toBeInTheDocument();
   });
 

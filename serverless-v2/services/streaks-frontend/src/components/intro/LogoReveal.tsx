@@ -6,12 +6,14 @@ import { TIMELINE } from './useSequencer';
 /**
  * Beat 2 — the logo reveal, layered OVER the idle scene (transparent bed).
  *
- * Wordmark "HIJACK POKER" fades + rises in, then the black HJ chip flies in
- * from the right doing a pseudo-3D rotateY coin-flip and springs onto its mark
- * with a specular highlight sweep. After the chip settles the host flips
- * `awaitingTap`, which reveals a pulsing "Tap to ride in" prompt — the flow
- * then WAITS for input. On `exiting` the whole lockup dissolves (the run-off
- * carries the eye away beneath it).
+ * The lockup is anchored TOP-RIGHT (in the empty sky, clear of the horse which
+ * is lower-center) and stacked VERTICALLY: the big "HIJACK ◄ POKER ►" wordmark
+ * on top, the HJ chip directly UNDERNEATH it. The wordmark fades + rises in,
+ * then the chip flies in from the right doing a pseudo-3D rotateY coin-flip and
+ * springs onto its mark (under the wordmark) with a specular highlight sweep.
+ * After the chip settles the host flips `awaitingTap`, which reveals a pulsing
+ * "Tap to ride in" prompt (bottom-center) — the flow then WAITS for input. On
+ * `exiting` the whole lockup dissolves (the run-off carries the eye away).
  *
  * Framer Motion is loaded via LazyMotion + domAnimation + the `m` component so
  * it never enters the dashboard bundle (the whole intro is lazy-split).
@@ -83,19 +85,20 @@ export default function LogoReveal({
           sx={{
             position: 'absolute',
             inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
             cursor: awaitingTap ? 'pointer' : 'default',
           }}
         >
+          {/* Lockup anchored TOP-RIGHT, stacked vertically (wordmark over chip). */}
           <Box
+            data-testid="intro-lockup"
             sx={{
+              position: 'absolute',
+              top: { xs: 24, md: 56 },
+              right: { xs: 24, md: 72 },
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: { xs: 4, md: 8 },
+              gap: { xs: 2, md: 3 },
             }}
           >
             {/* ---- Wordmark (SWAP: final wordmark SVG) ------------------ */}
@@ -113,7 +116,7 @@ export default function LogoReveal({
               <Box
                 sx={{
                   fontFamily: '"Rye", Georgia, serif',
-                  fontSize: { xs: 56, md: 96 },
+                  fontSize: { xs: 72, md: 132 },
                   lineHeight: 1,
                   letterSpacing: 2,
                   background:
@@ -131,8 +134,8 @@ export default function LogoReveal({
                 sx={{
                   mt: 1,
                   fontFamily: '"Smokum", "Rye", Georgia, serif',
-                  fontSize: { xs: 22, md: 34 },
-                  letterSpacing: 10,
+                  fontSize: { xs: 28, md: 46 },
+                  letterSpacing: 12,
                   color: '#E8C778',
                   display: 'flex',
                   alignItems: 'center',
@@ -151,8 +154,8 @@ export default function LogoReveal({
             <Box
               sx={{
                 perspective: '1200px',
-                width: { xs: 150, md: 230 },
-                height: { xs: 150, md: 230 },
+                width: { xs: 190, md: 300 },
+                height: { xs: 190, md: 300 },
                 flexShrink: 0,
               }}
             >
@@ -245,6 +248,8 @@ export default function LogoReveal({
             style={{
               position: 'absolute',
               bottom: '12%',
+              left: '50%',
+              transform: 'translateX(-50%)',
               pointerEvents: awaitingTap ? 'auto' : 'none',
               userSelect: 'none',
             }}
