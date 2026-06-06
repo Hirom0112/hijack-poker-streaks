@@ -87,8 +87,10 @@ export default function HorseGallop({
               onError={() => setErrored(true)}
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             >
-              <source src="/assets/horse-intro.webm" type="video/webm" />
+              {/* MP4/H.264 FIRST: Safari reports webm as "maybe" then stalls on VP9,
+                  so list the universally-decodable H.264 source ahead of webm. */}
               <source src="/assets/horse-intro.mp4" type="video/mp4" />
+              <source src="/assets/horse-intro.webm" type="video/webm" />
             </video>
           ) : (
             <Box
