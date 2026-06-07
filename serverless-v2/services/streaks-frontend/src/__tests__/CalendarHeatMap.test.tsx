@@ -2,13 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import { renderWithProviders } from '../test/renderWithProviders';
 import CalendarHeatMap from '../components/CalendarHeatMap';
-import { theme } from '../theme';
 import type { ActivityDay } from '../types/streaks.types';
-
-// The heat map colors cells from the active theme's `palette.heatmap` (falling
-// back to the component's ACTIVITY_COLORS only when a theme omits it). Tests
-// render under the default theme, so assert against that theme's heatmap.
-const ACTIVITY_COLORS = theme.palette.heatmap;
 
 const days: ActivityDay[] = [
   { date: '2026-04-01', activity: 'none', loginStreak: 0, playStreak: 0 },
@@ -33,30 +27,31 @@ describe('CalendarHeatMap', () => {
     expect(cells.length).toBe(30);
   });
 
-  it('colors each cell by its activity (5 states)', () => {
+  it('marks each cell with its activity + a painted icon (4 active states, none = empty)', () => {
     renderWithProviders(<CalendarHeatMap month="2026-04" days={days} />);
-    expect(screen.getByTestId('heatcell-2026-04-01')).toHaveStyle({
-      backgroundColor: ACTIVITY_COLORS.none,
-    });
-    expect(screen.getByTestId('heatcell-2026-04-02')).toHaveStyle({
-      backgroundColor: ACTIVITY_COLORS.login_only,
-    });
-    expect(screen.getByTestId('heatcell-2026-04-03')).toHaveStyle({
-      backgroundColor: ACTIVITY_COLORS.played,
-    });
-    expect(screen.getByTestId('heatcell-2026-04-04')).toHaveStyle({
-      backgroundColor: ACTIVITY_COLORS.freeze,
-    });
-    expect(screen.getByTestId('heatcell-2026-04-05')).toHaveStyle({
-      backgroundColor: ACTIVITY_COLORS.broken,
-    });
+    // none → tagged none, no icon
+    const none = screen.getByTestId('heatcell-2026-04-01');
+    expect(none).toHaveAttribute('data-activity', 'none');
+    expect(within(none).queryByRole('img')).toBeNull();
+    // the four active states → tagged + carry an icon
+    const cases: [string, string][] = [
+      ['heatcell-2026-04-02', 'login_only'],
+      ['heatcell-2026-04-03', 'played'],
+      ['heatcell-2026-04-04', 'freeze'],
+      ['heatcell-2026-04-05', 'broken'],
+    ];
+    for (const [id, activity] of cases) {
+      const cell = screen.getByTestId(id);
+      expect(cell).toHaveAttribute('data-activity', activity);
+      expect(within(cell).getByRole('img')).toBeInTheDocument();
+    }
   });
 
   it('treats an unknown activity value as none (§7)', () => {
     renderWithProviders(<CalendarHeatMap month="2026-04" days={days} />);
-    expect(screen.getByTestId('heatcell-2026-04-06')).toHaveStyle({
-      backgroundColor: ACTIVITY_COLORS.none,
-    });
+    const cell = screen.getByTestId('heatcell-2026-04-06');
+    expect(cell).toHaveAttribute('data-activity', 'none');
+    expect(within(cell).queryByRole('img')).toBeNull();
   });
 
   it('wraps each cell in a tooltip carrying date + activity + streak counts', () => {

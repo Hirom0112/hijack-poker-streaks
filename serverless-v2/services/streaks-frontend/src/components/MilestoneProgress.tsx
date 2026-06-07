@@ -1,5 +1,6 @@
-import { Box, LinearProgress, Paper, Typography } from '@mui/material';
+import { Box, LinearProgress, Typography } from '@mui/material';
 import type { Milestone } from '../types/streaks.types';
+import Panel from './Panel';
 
 interface MilestoneProgressProps {
   loginStreak: number;
@@ -68,17 +69,7 @@ export default function MilestoneProgress({
   nextPlayMilestone,
 }: MilestoneProgressProps) {
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 3,
-        border: '1px solid',
-        borderColor: 'rgba(255,255,255,0.08)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2.5,
-      }}
-    >
+    <Panel innerSx={{ display: 'flex', flexDirection: 'column', gap: 2.5, py: 0.5 }}>
       <Typography variant="h6">Next Milestone</Typography>
       <MilestoneAxis
         verb="Log in"
@@ -92,6 +83,6 @@ export default function MilestoneProgress({
         milestone={nextPlayMilestone}
         color="secondary"
       />
-    </Paper>
+    </Panel>
   );
 }

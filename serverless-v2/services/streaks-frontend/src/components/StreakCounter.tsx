@@ -1,4 +1,5 @@
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
+import Panel from './Panel';
 
 export type Motif = 'flame' | 'cards';
 
@@ -9,10 +10,13 @@ interface StreakCounterProps {
   motif: Motif;
 }
 
-/** Visual cap + gentle grow factor for the motif (zero-dep CSS transform). */
+/**
+ * Gentle grow factor for the motif (zero-dep CSS transform), clamped so a huge
+ * streak (e.g. 95) can't blow the brazier out of the card.
+ */
 const SCALE_CAP = 365;
 const scaleFor = (streak: number) =>
-  1 + Math.min(Math.max(streak, 0), SCALE_CAP) * 0.006;
+  Math.min(1.4, 1 + Math.min(Math.max(streak, 0), SCALE_CAP) * 0.006);
 
 const FIRE_SRC = '/assets/dashboard/icons/icon-fire.png';
 const CARDS_SRC = '/assets/dashboard/icons/icon-cards.png';
@@ -119,17 +123,13 @@ export default function StreakCounter({ label, value, best, motif }: StreakCount
   const scale = scaleFor(value);
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 3,
-        height: '100%',
-        border: '1px solid',
-        borderColor: 'rgba(255,255,255,0.08)',
+    <Panel
+      innerSx={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         gap: 1,
+        py: 1,
       }}
     >
       <Typography variant="overline" color="text.secondary">
@@ -164,6 +164,6 @@ export default function StreakCounter({ label, value, best, motif }: StreakCount
       <Typography variant="body2" color="text.secondary">
         Best: {best}
       </Typography>
-    </Paper>
+    </Panel>
   );
 }

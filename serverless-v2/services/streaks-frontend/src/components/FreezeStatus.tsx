@@ -1,5 +1,6 @@
-import { Box, Chip, List, ListItem, ListItemText, Paper, Typography } from '@mui/material';
+import { Box, Chip, List, ListItem, ListItemText, Typography } from '@mui/material';
 import AcUnitIcon from '@mui/icons-material/AcUnit';
+import Panel from './Panel';
 import { useGetFreezesQuery } from '../store/streaksApi';
 
 interface FreezeStatusProps {
@@ -12,12 +13,9 @@ export default function FreezeStatus({ todayActivity }: FreezeStatusProps) {
   const { data, isLoading, isError } = useGetFreezesQuery();
 
   return (
-    <Paper
-      elevation={0}
-      sx={{ p: 3, border: '1px solid', borderColor: 'rgba(255,255,255,0.08)' }}
-    >
+    <Panel>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-        <AcUnitIcon sx={{ color: '#388BFD' }} />
+        <AcUnitIcon sx={{ color: '#6FB6D6' }} />
         <Typography variant="h6">Streak Freezes</Typography>
       </Box>
 
@@ -66,6 +64,6 @@ export default function FreezeStatus({ todayActivity }: FreezeStatusProps) {
           )}
         </>
       )}
-    </Paper>
+    </Panel>
   );
 }
