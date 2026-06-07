@@ -8,9 +8,9 @@ import { store, type RootState } from './store';
 import { themes } from './theme';
 
 /**
- * Drives MUI's ThemeProvider from the `theme` redux slice (BL-2), so the
- * ThemeSwitcher re-skins the whole tree live. CssBaseline lives inside so it
- * re-applies the active theme's background on every switch.
+ * Drives MUI's ThemeProvider from the `theme` redux slice. There is currently a
+ * single theme (hijack-tavern); the slice is kept so re-introducing selectable
+ * themes is a localized change. CssBaseline applies the theme's wood background.
  */
 function ThemedApp() {
   const themeName = useSelector((s: RootState) => s.theme.name);

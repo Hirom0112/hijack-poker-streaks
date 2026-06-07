@@ -16,7 +16,7 @@ import LoginScreen from '../components/LoginScreen';
 function renderLogin() {
   return render(
     <Provider store={store}>
-      <ThemeProvider theme={themes['hijack-dark']}>
+      <ThemeProvider theme={themes['hijack-tavern']}>
         <MemoryRouter initialEntries={['/login']}>
           <Routes>
             <Route path="/login" element={<LoginScreen />} />

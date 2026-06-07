@@ -2,8 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import { renderWithProviders } from '../test/renderWithProviders';
 import CalendarHeatMap from '../components/CalendarHeatMap';
-import { ACTIVITY_COLORS } from '../components/CalendarHeatMap';
+import { theme } from '../theme';
 import type { ActivityDay } from '../types/streaks.types';
+
+// The heat map colors cells from the active theme's `palette.heatmap` (falling
+// back to the component's ACTIVITY_COLORS only when a theme omits it). Tests
+// render under the default theme, so assert against that theme's heatmap.
+const ACTIVITY_COLORS = theme.palette.heatmap;
 
 const days: ActivityDay[] = [
   { date: '2026-04-01', activity: 'none', loginStreak: 0, playStreak: 0 },

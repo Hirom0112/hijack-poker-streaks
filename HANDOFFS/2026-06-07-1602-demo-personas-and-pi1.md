@@ -51,6 +51,31 @@ it means deciding HOW we want the demo to behave, which is a product call.
 
 Recommendation: **#1 for the video now**, **#2** if we want a live check-in moment.
 
+## STUB DECISION — removed the 3-theme switcher (BL-2), now single "tavern" theme
+**What changed:** the dashboard is being reskinned to the wood-and-brass **tavern /
+poker-parlor** concept art (`~/Desktop/Gemini_Generated_Image_…png`). Per user
+direction we **removed the 3-way theme switcher** (the "1 2 3" control: hijack-dark
+/ hijack-lounge / hijack-neon) and collapsed to a **single committed theme,
+`hijack-tavern`** (`theme.ts`). Browser/page background is now wood-brown
+(`#2E1D10`) incl. a `theme-color` meta; headings use Cinzel, body Spectral (Google
+Fonts in `index.html`).
+- Deleted: `components/ThemeSwitcher.tsx` + `__tests__/ThemeSwitcher.test.tsx`
+  (−3 tests → 34 total, all green). `theme.ts` keeps `themes` as a one-entry map so
+  re-adding selectable themes is localized.
+**Why a stub, not final:** the user said "remove them for now **unless we actually
+make them later**." If we DO want selectable themes again, the full switcher + the
+other two palettes are in git history (this commit's parent) — revive by restoring
+`ThemeSwitcher.tsx`, re-adding entries to the `themes` map + `THEME_META`, and
+dropping `<ThemeSwitcher/>` back into the dashboard header.
+
+## STUB / BLOCKED — full tavern reskin is asset-gated
+The brown palette + fonts are in, but the **ornate look (riveted gold frames, fire/
+cards hero icons, heat-map cell icons, chips/coins scatter) needs art**. Every asset
+needed is specced in **`streaks-frontend/public/assets/dashboard/ASSETS.md`** with
+exact filenames/sizes. Drop raw originals into **`~/Desktop/HIJACK_ASSETS/dashboard/`**
+(9 MUST-haves listed there); then wire the 9-slice frames + icons into the panels.
+Until assets land, the dashboard is "brown-themed flat", not the full parlor.
+
 ## State / how to run
 - Stack was up this session (dynamodb:8000, api:5001, frontend:4001). Re-seed:
   `node scripts/seed-streaks.js` (idempotent, wipes legacy ids).
