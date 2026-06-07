@@ -26,7 +26,7 @@ describe('StreakDashboard (MSW-backed, real Provider)', () => {
     ).toBeGreaterThanOrEqual(30);
     // freeze + rewards (their own fetches)
     expect(await screen.findByText(/Streak Freezes/i)).toBeInTheDocument();
-    expect(await screen.findByText(/7-day login milestone/i)).toBeInTheDocument();
+    expect(await screen.findByText(/7-day login streak/i)).toBeInTheDocument();
   });
 
   it('fires a check-in mutation when the button is clicked', async () => {

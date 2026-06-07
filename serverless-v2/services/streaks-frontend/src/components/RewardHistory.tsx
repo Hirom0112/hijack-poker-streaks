@@ -1,64 +1,148 @@
-import {
-  Box,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  Paper,
-  Typography,
-} from '@mui/material';
+import { Box, Paper, Typography } from '@mui/material';
 import RedeemIcon from '@mui/icons-material/Redeem';
 import { useGetRewardsQuery } from '../store/streaksApi';
+import type { RewardRecord } from '../types/streaks.types';
 
-/** FR-4.7: reward history — each reward's date, milestone, type, points. Fetches /rewards. */
+/** Parchment ledger background; the columns/rows are drawn in CSS on top of it. */
+const PARCHMENT = '/assets/dashboard/frames/reward-parchment.png';
+const INK = '#3a2a16'; // dark brown ledger ink (this panel is light-on-parchment)
+const INK_SOFT = 'rgba(58,42,22,0.62)';
+const RULE = 'rgba(58,42,22,0.18)';
+
+/** 4-column ledger grid: Date · Milestone · Points · Type. */
+const COLS = '0.9fr 1.9fr 0.9fr 1fr';
+
+function fmtDate(iso: string): string {
+  // Render from the UTC parts so it's stable regardless of viewer timezone.
+  const d = new Date(iso);
+  const month = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
+  return `${month} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+}
+
+function RewardRow({ reward, isNew }: { reward: RewardRecord; isNew: boolean }) {
+  const axis = reward.type === 'login_milestone' ? 'Login' : 'Play';
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: COLS,
+        alignItems: 'center',
+        gap: 1,
+        px: 2,
+        py: 1.1,
+        borderBottom: `1px solid ${RULE}`,
+        fontFamily: '"Spectral", Georgia, serif',
+        color: INK,
+        '&:nth-of-type(even)': { backgroundColor: 'rgba(58,42,22,0.05)' },
+      }}
+    >
+      <Typography sx={{ fontSize: 14, color: INK_SOFT }}>{fmtDate(reward.createdAt)}</Typography>
+      <Typography sx={{ fontSize: 14, fontWeight: 600 }}>
+        {`${reward.milestone}-day ${axis.toLowerCase()} streak`}
+      </Typography>
+      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#8a4b1f' }}>
+        +{reward.points}
+      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+        <Typography sx={{ fontSize: 14 }}>{axis}</Typography>
+        {isNew && (
+          <Box
+            component="span"
+            sx={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: 0.5,
+              color: '#fff',
+              backgroundColor: '#b5451f',
+              border: '1px solid rgba(0,0,0,0.25)',
+              borderRadius: 1,
+              px: 0.6,
+              py: '1px',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+            }}
+          >
+            NEW
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+/** FR-4.7: reward history — each reward's date, milestone, points, type. Fetches /rewards. */
 export default function RewardHistory() {
   const { data, isLoading, isError } = useGetRewardsQuery();
+
+  // Flag the two most recent rewards as NEW (the list is returned newest-first).
+  const newCount = 2;
 
   return (
     <Paper
       elevation={0}
-      sx={{ p: 3, border: '1px solid', borderColor: 'rgba(255,255,255,0.08)' }}
+      sx={{
+        p: 0,
+        overflow: 'hidden',
+        borderRadius: 2,
+        border: '1px solid rgba(40,26,12,0.55)',
+        boxShadow: '0 6px 18px rgba(0,0,0,0.35)',
+        backgroundImage: `url(${PARCHMENT})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        color: INK,
+      }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-        <RedeemIcon sx={{ color: 'primary.main' }} />
-        <Typography variant="h6">Reward History</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2, pt: 2, pb: 1 }}>
+        <RedeemIcon sx={{ color: '#8a4b1f' }} />
+        <Typography variant="h6" sx={{ color: INK }}>
+          Reward History
+        </Typography>
       </Box>
 
-      {isLoading && <Typography color="text.secondary">Loading rewards…</Typography>}
-      {isError && (
-        <Typography color="error">Could not load reward history.</Typography>
+      {isLoading && (
+        <Typography sx={{ px: 2, pb: 2, color: INK_SOFT }}>Loading rewards…</Typography>
       )}
-
+      {isError && (
+        <Typography sx={{ px: 2, pb: 2, color: '#a33' }}>
+          Could not load reward history.
+        </Typography>
+      )}
       {data && data.length === 0 && (
-        <Typography color="text.secondary">
+        <Typography sx={{ px: 2, pb: 2, color: INK_SOFT }}>
           No rewards earned yet — keep your streak alive!
         </Typography>
       )}
 
       {data && data.length > 0 && (
-        <List dense disablePadding>
-          {data.map((r) => (
-            <ListItem
-              key={r.rewardId}
-              disableGutters
-              secondaryAction={
-                <Chip
-                  label={`+${r.points}`}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                />
-              }
-            >
-              <ListItemText
-                primary={`${r.milestone}-day ${
-                  r.type === 'login_milestone' ? 'login' : 'play'
-                } milestone`}
-                secondary={new Date(r.createdAt).toISOString().slice(0, 10)}
-              />
-            </ListItem>
-          ))}
-        </List>
+        <Box>
+          {/* column header row */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: COLS,
+              gap: 1,
+              px: 2,
+              py: 0.75,
+              borderBottom: `2px solid ${RULE}`,
+              fontFamily: '"Cinzel", Georgia, serif',
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 0.6,
+              textTransform: 'uppercase',
+              color: INK_SOFT,
+            }}
+          >
+            <span>Date</span>
+            <span>Milestone</span>
+            <span>Points</span>
+            <span>Type</span>
+          </Box>
+          {/* scrollable rows */}
+          <Box sx={{ maxHeight: 340, overflowY: 'auto' }}>
+            {data.map((r, i) => (
+              <RewardRow key={r.rewardId} reward={r} isNew={i < newCount} />
+            ))}
+          </Box>
+        </Box>
       )}
     </Paper>
   );
