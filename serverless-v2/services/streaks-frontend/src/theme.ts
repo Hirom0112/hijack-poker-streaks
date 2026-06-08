@@ -66,12 +66,12 @@ const hijackTavernOptions: ThemeOptions = {
     MuiCssBaseline: {
       styleOverrides: {
         body: {
-          backgroundColor: '#2E1D10',
-          // A darkening scrim over the table photo: a center-weighted radial (to
-          // counter the bright central glow that competes with the cards) plus a
-          // flat darken so the leather panels read cleanly on top.
+          backgroundColor: '#1a1009',
+          // The 4K table photo is already dark + evenly lit, so no scrim — just a
+          // whisper of edge vignette for focus. Pinned to the viewport so it fills
+          // the screen at every scroll position.
           backgroundImage:
-            'radial-gradient(ellipse at 50% 40%, rgba(20,12,6,0.5) 0%, rgba(20,12,6,0) 60%), linear-gradient(rgba(20,12,6,0.34), rgba(20,12,6,0.44)), url(/assets/dashboard/bg/bg-wood.jpg)',
+            'radial-gradient(ellipse at 50% 45%, rgba(20,12,6,0) 55%, rgba(15,9,4,0.35) 100%), url(/assets/dashboard/bg/bg-wood.jpg)',
           backgroundSize: 'cover',
           backgroundPosition: 'center center',
           backgroundRepeat: 'no-repeat',
