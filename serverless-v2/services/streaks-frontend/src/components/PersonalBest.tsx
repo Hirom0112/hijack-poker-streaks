@@ -14,13 +14,13 @@ export default function PersonalBest({
   bestPlayStreak,
 }: PersonalBestProps) {
   return (
-    <Panel editId="card-personalbest" editLabel="Personal Best card">
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+    <Panel editId="card-personalbest" editLabel="Personal Best card" innerSx={{ textAlign: 'center' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1.5 }}>
         <EmojiEventsIcon sx={{ color: 'primary.main' }} />
         <Typography variant="h6">Personal Best</Typography>
       </Box>
       <Rule my={1} />
-      <Box sx={{ display: 'flex', gap: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
         <Box>
           <Typography variant="overline" color="text.secondary">
             Best Login

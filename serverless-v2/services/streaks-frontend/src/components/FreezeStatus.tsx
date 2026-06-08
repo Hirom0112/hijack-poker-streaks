@@ -14,8 +14,8 @@ export default function FreezeStatus({ todayActivity }: FreezeStatusProps) {
   const { data, isLoading, isError } = useGetFreezesQuery();
 
   return (
-    <Panel editId="card-freezes" editLabel="Streak Freezes card">
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+    <Panel editId="card-freezes" editLabel="Streak Freezes card" innerSx={{ textAlign: 'center' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1.5 }}>
         <AcUnitIcon sx={{ color: '#6FB6D6' }} />
         <Typography variant="h6">Streak Freezes</Typography>
       </Box>
@@ -28,7 +28,7 @@ export default function FreezeStatus({ todayActivity }: FreezeStatusProps) {
 
       {data && (
         <>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 1 }}>
             <Typography variant="h4" fontWeight={800}>
               {data.freezesAvailable}
             </Typography>
@@ -54,8 +54,9 @@ export default function FreezeStatus({ todayActivity }: FreezeStatusProps) {
           ) : (
             <List dense disablePadding>
               {data.history.map((h) => (
-                <ListItem key={`${h.date}-${h.source}`} disableGutters>
+                <ListItem key={`${h.date}-${h.source}`} disableGutters sx={{ justifyContent: 'center' }}>
                   <ListItemText
+                    sx={{ flex: 'none', textAlign: 'center' }}
                     primary={h.date}
                     secondary={h.source.replace('_', ' ')}
                   />
