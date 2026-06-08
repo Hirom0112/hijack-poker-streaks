@@ -30,8 +30,9 @@ const CARDS_SRC = '/assets/dashboard/icons/ace.png';
  */
 function flameScale(streak: number): number {
   const s = Math.max(0, streak);
-  if (s >= 20) return Math.min(1.2, 1 + (s - 20) * 0.0016);
-  return 0.62 + (s / 20) * 0.38; // 0.62 → 1.0 across the first 20 days
+  // A healthy flame even at a modest streak: ~1.0 by day 12, lifting toward 90.
+  if (s >= 20) return Math.min(1.28, 1.12 + (s - 20) * 0.0022);
+  return 0.8 + (s / 20) * 0.32; // 0.8 → 1.12 across the first 20 days
 }
 
 /**
@@ -41,26 +42,26 @@ function flameScale(streak: number): number {
  */
 function FlameMotif({ value }: { value: number }) {
   return (
-    <Box sx={{ position: 'relative', width: 156, height: 172 }}>
+    <Box sx={{ position: 'relative', width: 118, height: 136 }}>
       {/* soft, slow ember glow at the rim */}
       <Box
         sx={{
           position: 'absolute',
           left: '50%',
-          bottom: 30,
-          width: 84,
-          height: 56,
+          bottom: 28,
+          width: 104,
+          height: 66,
           transform: 'translateX(-50%)',
-          background: 'radial-gradient(circle, rgba(255,150,45,0.4) 0%, rgba(255,90,20,0) 70%)',
-          filter: 'blur(6px)',
+          background: 'radial-gradient(circle, rgba(255,150,45,0.5) 0%, rgba(255,90,20,0) 70%)',
+          filter: 'blur(7px)',
           borderRadius: '50%',
           pointerEvents: 'none',
-          animation: 'emberGlow 4.5s ease-in-out infinite',
+          animation: 'emberGlow 3s ease-in-out infinite',
           '@keyframes emberGlow': {
-            '0%, 100%': { opacity: 0.4, transform: 'translateX(-50%) scale(1)' },
-            '50%': { opacity: 0.6, transform: 'translateX(-50%) scale(1.06)' },
+            '0%, 100%': { opacity: 0.45, transform: 'translateX(-50%) scale(1)' },
+            '50%': { opacity: 0.75, transform: 'translateX(-50%) scale(1.12)' },
           },
-          '@media (prefers-reduced-motion: reduce)': { animation: 'none', opacity: 0.5 },
+          '@media (prefers-reduced-motion: reduce)': { animation: 'none', opacity: 0.55 },
         }}
       />
       {/* the pot — static, fixed size */}
@@ -68,7 +69,7 @@ function FlameMotif({ value }: { value: number }) {
         component="img"
         src={POT_SRC}
         alt=""
-        sx={{ position: 'absolute', left: 0, right: 0, bottom: 0, mx: 'auto', width: 138, display: 'block' }}
+        sx={{ position: 'absolute', left: 0, right: 0, bottom: 0, mx: 'auto', width: 100, display: 'block' }}
       />
       {/* the flames — scaled by the streak, rising from inside the pot */}
       <Box
@@ -91,40 +92,23 @@ function FlameMotif({ value }: { value: number }) {
           src={FLAMES_SRC}
           alt=""
           sx={{
-            height: 142,
+            height: 112,
             width: 'auto',
             objectFit: 'contain',
             transformOrigin: 'bottom center',
-            animation: 'flameBreathe 4s ease-in-out infinite',
-            '@keyframes flameBreathe': {
-              '0%, 100%': { transform: 'scaleY(1)', filter: 'brightness(1)' },
-              '50%': { transform: 'scaleY(1.03)', filter: 'brightness(1.06)' },
+            // a livelier flicker: subtle squash/stretch + lateral sway + brightness
+            // pulse, so the fire reads as "alive" rather than a static sprite.
+            animation: 'flameFlicker 2.4s ease-in-out infinite',
+            '@keyframes flameFlicker': {
+              '0%, 100%': { transform: 'scaleY(1) scaleX(1) translateX(0)', filter: 'brightness(1)' },
+              '25%': { transform: 'scaleY(1.06) scaleX(0.97) translateX(-0.5px)', filter: 'brightness(1.12)' },
+              '50%': { transform: 'scaleY(1.02) scaleX(1.02) translateX(0.5px)', filter: 'brightness(1.05)' },
+              '75%': { transform: 'scaleY(1.07) scaleX(0.96) translateX(-0.5px)', filter: 'brightness(1.14)' },
             },
             '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
           }}
         />
       </Box>
-      {/* the streak number embossed in gold over the flames */}
-      <Typography
-        aria-hidden
-        sx={{
-          position: 'absolute',
-          left: '50%',
-          top: '44%',
-          transform: 'translate(-50%, -50%)',
-          fontFamily: '"Zilla Slab", Georgia, serif',
-          fontWeight: 800,
-          fontSize: value >= 100 ? 26 : 32,
-          color: '#F6D98A',
-          textShadow:
-            '0 2px 5px rgba(90,20,0,0.9), 0 0 3px rgba(0,0,0,0.8), 0 1px 0 rgba(255,220,140,0.5)',
-          pointerEvents: 'none',
-          lineHeight: 1,
-          zIndex: 2,
-        }}
-      >
-        {value}
-      </Typography>
     </Box>
   );
 }
@@ -139,57 +123,93 @@ export default function StreakCounter({ label, value, best, motif }: StreakCount
   const isFlame = motif === 'flame';
 
   return (
-    <Panel editId={`card-${motif}`} editLabel={`${label} card`} innerSx={{ py: 1 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-        {/* left: label + big number + best */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+    <Panel editId={`card-${motif}`} editLabel={`${label} card`} innerSx={{ height: '100%' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          minHeight: 196,
+          justifyContent: 'space-between',
+          py: 0.5,
+        }}
+      >
+        {/* label — big + uppercase, anchors the top of the card */}
+        <Typography
+          sx={{
+            fontFamily: '"Zilla Slab", Georgia, serif',
+            fontWeight: 800,
+            fontSize: 26,
+            lineHeight: 1,
+            color: 'text.primary',
+            letterSpacing: 1.2,
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+            textShadow: '0 1px 2px rgba(0,0,0,0.6)',
+          }}
+        >
+          {label}
+        </Typography>
+
+        {/* middle band — the hero NUMBER beside the motif, fills the vertical space */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            // login: number left / flame right (spread). play: cluster the number
+            // and the (larger) card fan toward the centre — 6 nudged right, ace left.
+            justifyContent: isFlame ? 'space-between' : 'center',
+            flex: '1 1 auto',
+            gap: isFlame ? 0.5 : 2.5,
+            minWidth: 0,
+          }}
+        >
           <Typography
             sx={{
               fontFamily: '"Zilla Slab", Georgia, serif',
-              fontWeight: 700,
-              fontSize: 16,
-              color: 'secondary.main',
-              letterSpacing: 0.3,
-            }}
-          >
-            {label}
-          </Typography>
-          <Typography
-            sx={{
-              fontFamily: '"Zilla Slab", Georgia, serif',
-              fontWeight: 800,
-              fontSize: 56,
-              lineHeight: 1,
-              color: isFlame ? '#E08A3C' : 'text.primary',
+              fontWeight: 900,
+              fontSize: value >= 100 ? 78 : 104,
+              lineHeight: 0.85,
+              letterSpacing: '-0.02em',
+              color: isFlame ? '#EA8C2B' : 'text.primary',
+              // carved / embossed "saloon signage" look from the concept art
+              WebkitTextStroke: isFlame
+                ? '1px rgba(70,30,8,0.5)'
+                : '0.75px rgba(40,24,10,0.45)',
+              textShadow: isFlame
+                ? '0 2px 0 rgba(74,28,6,0.6), 0 5px 12px rgba(0,0,0,0.5), 0 1px 0 rgba(255,222,150,0.45)'
+                : '0 2px 0 rgba(0,0,0,0.45), 0 5px 12px rgba(0,0,0,0.5), 0 1px 0 rgba(255,240,210,0.3)',
             }}
           >
             {value}
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Best: {best} days
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {isFlame ? (
+              <Editable id="brazier" label="Brazier">
+                <FlameMotif value={value} />
+              </Editable>
+            ) : (
+              <Editable id="ace" label="Card fan">
+                <Box
+                  component="img"
+                  data-testid="motif-cards"
+                  aria-label="cards"
+                  src={CARDS_SRC}
+                  alt=""
+                  style={{ transform: `scale(${scaleFor(value)})` }}
+                  sx={{ width: 108, height: 108, objectFit: 'contain', transformOrigin: 'center' }}
+                />
+              </Editable>
+            )}
+          </Box>
         </Box>
 
-        {/* right: the motif (grows with the streak) */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          {isFlame ? (
-            <Editable id="brazier" label="Brazier">
-              <FlameMotif value={value} />
-            </Editable>
-          ) : (
-            <Editable id="ace" label="Card fan">
-              <Box
-                component="img"
-                data-testid="motif-cards"
-                aria-label="cards"
-                src={CARDS_SRC}
-                alt=""
-                style={{ transform: `scale(${scaleFor(value)})` }}
-                sx={{ width: 124, height: 124, objectFit: 'contain', transformOrigin: 'center' }}
-              />
-            </Editable>
-          )}
-        </Box>
+        {/* best — anchors the bottom */}
+        <Typography
+          sx={{ fontSize: 16, fontWeight: 600, color: 'text.secondary', whiteSpace: 'nowrap' }}
+        >
+          Best: {best} days
+        </Typography>
       </Box>
     </Panel>
   );

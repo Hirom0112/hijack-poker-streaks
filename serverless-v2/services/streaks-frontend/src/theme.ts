@@ -66,12 +66,12 @@ const hijackTavernOptions: ThemeOptions = {
     MuiCssBaseline: {
       styleOverrides: {
         body: {
-          backgroundColor: '#23160c',
-          // The 4K table photo, lifted slightly: a warm translucent wash raises the
-          // shadows a touch, then a whisper of edge vignette for focus. Pinned to
-          // the viewport so it fills the screen at every scroll position.
+          backgroundColor: '#2c1d10',
+          // The 4K table photo, lifted: a slightly warmer/lighter wash raises the
+          // shadows, and a softened edge vignette keeps focus without going muddy.
+          // Pinned to the viewport so it fills the screen at every scroll position.
           backgroundImage:
-            'linear-gradient(rgba(120,84,48,0.14), rgba(120,84,48,0.14)), radial-gradient(ellipse at 50% 45%, rgba(20,12,6,0) 60%, rgba(15,9,4,0.28) 100%), url(/assets/dashboard/bg/bg-wood.jpg)',
+            'linear-gradient(rgba(152,110,68,0.20), rgba(152,110,68,0.20)), radial-gradient(ellipse at 50% 42%, rgba(70,46,24,0.04) 58%, rgba(15,9,4,0.20) 100%), url(/assets/dashboard/bg/bg-wood.jpg)',
           backgroundSize: 'cover',
           backgroundPosition: 'center center',
           backgroundRepeat: 'no-repeat',
