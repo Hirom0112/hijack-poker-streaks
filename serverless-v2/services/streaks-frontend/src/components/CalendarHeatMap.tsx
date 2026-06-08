@@ -80,7 +80,7 @@ export default function CalendarHeatMap({ month, days }: CalendarHeatMapProps) {
   const leadOffset = days.length ? weekday(days[0].date) : 0;
 
   return (
-    <Panel innerSx={{ py: 0.5 }}>
+    <Panel editId="card-calendar" editLabel="Calendar card" innerSx={{ py: 0.5 }}>
       <Typography variant="h6">{fmtMonth(month)}</Typography>
       <Rule my={1} />
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.75 }}>

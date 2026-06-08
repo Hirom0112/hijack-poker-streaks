@@ -164,7 +164,7 @@ export default function MilestoneProgress({
   const loginAccent = '#E08A3C';
   const playAccent = '#D9A441';
   return (
-    <Panel innerSx={{ display: 'flex', flexDirection: 'column', py: 0.5 }}>
+    <Panel editId="card-milestone" editLabel="Next Milestone card" innerSx={{ display: 'flex', flexDirection: 'column', py: 0.5 }}>
       <Typography variant="h6">Next Milestone</Typography>
       <Rule my={1} />
       <MilestoneAxis

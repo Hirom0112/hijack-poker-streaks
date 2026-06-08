@@ -8,6 +8,8 @@ interface EditableProps {
   id: string;
   /** Short human label shown in the editor toolbar. */
   label?: string;
+  /** Fill the parent (block, 100% w/h) — for full cards rather than inline art. */
+  fill?: boolean;
   children: ReactNode;
   sx?: SxProps<Theme>;
 }
@@ -19,7 +21,7 @@ interface EditableProps {
  * width (scaleX), length (scaleY), and flips. Outside edit mode it's an inert
  * passthrough, so normal clicks (e.g. on buttons) work untouched.
  */
-export default function Editable({ id, label, children, sx }: EditableProps) {
+export default function Editable({ id, label, fill = false, children, sx }: EditableProps) {
   const ed = useEditor();
   const t = ed?.overrides[id] ?? IDENTITY;
   const active = !!ed?.active;
@@ -58,7 +60,9 @@ export default function Editable({ id, label, children, sx }: EditableProps) {
       data-editable-id={id}
       data-editable-label={label || id}
       sx={{
-        display: 'inline-flex',
+        display: fill ? 'block' : 'inline-flex',
+        width: fill ? '100%' : undefined,
+        height: fill ? '100%' : undefined,
         transform: `translate(${t.x}px, ${t.y}px) rotate(${t.rot}deg) scale(${t.sx}, ${t.sy})`,
         transformOrigin: 'center',
         transition: active ? 'none' : 'transform 120ms ease',

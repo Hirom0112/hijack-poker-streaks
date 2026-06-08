@@ -2,6 +2,7 @@ import { Box, Paper, Typography } from '@mui/material';
 import RedeemIcon from '@mui/icons-material/Redeem';
 import { useGetRewardsQuery } from '../store/streaksApi';
 import type { RewardRecord } from '../types/streaks.types';
+import Editable from '../editor/Editable';
 
 /** Parchment ledger background; the columns/rows are drawn in CSS on top of it. */
 const PARCHMENT = '/assets/dashboard/frames/reward-parchment.png';
@@ -77,6 +78,7 @@ export default function RewardHistory() {
   const newCount = 2;
 
   return (
+    <Editable id="card-rewards" label="Reward History card" fill>
     <Paper
       elevation={0}
       sx={{
@@ -145,5 +147,6 @@ export default function RewardHistory() {
         </Box>
       )}
     </Paper>
+    </Editable>
   );
 }

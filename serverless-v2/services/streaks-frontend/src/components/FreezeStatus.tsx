@@ -14,7 +14,7 @@ export default function FreezeStatus({ todayActivity }: FreezeStatusProps) {
   const { data, isLoading, isError } = useGetFreezesQuery();
 
   return (
-    <Panel>
+    <Panel editId="card-freezes" editLabel="Streak Freezes card">
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
         <AcUnitIcon sx={{ color: '#6FB6D6' }} />
         <Typography variant="h6">Streak Freezes</Typography>

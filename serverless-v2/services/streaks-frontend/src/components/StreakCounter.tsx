@@ -139,7 +139,7 @@ export default function StreakCounter({ label, value, best, motif }: StreakCount
   const isFlame = motif === 'flame';
 
   return (
-    <Panel innerSx={{ py: 1 }}>
+    <Panel editId={`card-${motif}`} editLabel={`${label} card`} innerSx={{ py: 1 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
         {/* left: label + big number + best */}
         <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>

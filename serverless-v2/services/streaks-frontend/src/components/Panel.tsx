@@ -1,6 +1,7 @@
 import { Box } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material';
 import type { ReactNode } from 'react';
+import Editable from '../editor/Editable';
 
 const LEATHER = '/assets/dashboard/frames/panel-leather.png';
 
@@ -10,6 +11,9 @@ interface PanelProps {
   sx?: SxProps<Theme>;
   /** Styles for the inner content area (padding/layout). */
   innerSx?: SxProps<Theme>;
+  /** When set, the whole card becomes draggable in the asset editor. */
+  editId?: string;
+  editLabel?: string;
 }
 
 /**
@@ -18,8 +22,8 @@ interface PanelProps {
  * center stretch to ANY width/height — so this one asset skins every card. The
  * `fill` keyword paints the leather texture behind the content.
  */
-export default function Panel({ children, sx, innerSx }: PanelProps) {
-  return (
+export default function Panel({ children, sx, innerSx, editId, editLabel }: PanelProps) {
+  const panel = (
     <Box
       sx={{
         position: 'relative',
@@ -37,5 +41,13 @@ export default function Panel({ children, sx, innerSx }: PanelProps) {
     >
       <Box sx={{ position: 'relative', px: 0.5, ...innerSx }}>{children}</Box>
     </Box>
+  );
+
+  return editId ? (
+    <Editable id={editId} label={editLabel} fill>
+      {panel}
+    </Editable>
+  ) : (
+    panel
   );
 }

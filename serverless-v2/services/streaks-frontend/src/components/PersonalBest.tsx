@@ -14,7 +14,7 @@ export default function PersonalBest({
   bestPlayStreak,
 }: PersonalBestProps) {
   return (
-    <Panel>
+    <Panel editId="card-personalbest" editLabel="Personal Best card">
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
         <EmojiEventsIcon sx={{ color: 'primary.main' }} />
         <Typography variant="h6">Personal Best</Typography>
