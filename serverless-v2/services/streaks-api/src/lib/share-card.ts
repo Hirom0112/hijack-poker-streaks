@@ -1,23 +1,25 @@
 /**
  * Share-card SVG generator (FR-9.1, API_CONTRACT.md §4.9).
  *
- * A PURE `(state) => string` template: it takes the streak figures from the §4.1
- * aggregate and renders a single, self-contained 1200×630 SVG document on
- * Hijack's dark/orange brand (CLAUDE.md §8 — `#FF9800` orange accent on the
- * near-black `#0D1117` base) carrying the `HIJACK POKER` wordmark and the
- * "Hot Streak" promo tie-in. The card encodes `loginStreak`, `playStreak` and
- * `bestLoginStreak` only — it is a pure projection of the aggregate.
+ * A PURE `(state) => string` template: it renders a single, self-contained
+ * 1344×798 SVG — the photoreal "Hot Streak" plate art (HIJACK POKER wordmark,
+ * LOGIN/PLAY labels, flame, card and the parlor scene all baked in) embedded as
+ * a base64 JPEG, with the live `loginStreak` / `playStreak` / `bestLoginStreak`
+ * figures overlaid in a metallic-cream serif on their measured slots. A pure
+ * projection of the §4.1 aggregate.
  *
- * Constraints (TECH_STACK §1 / STND-5): ZERO dependencies — no satori, no resvg,
- * no rasterizer. SVG is the guaranteed format. No external asset refs (fonts are
- * the generic `system-ui`/serif stacks; no `<image>`, no remote `href`) so the
- * card renders standalone in any browser tab or `<img src>`.
+ * Self-contained (TECH_STACK §1 / STND-5): ZERO runtime dependencies — no satori,
+ * no resvg, no rasterizer, no fs, no network. The plate is an inline `data:` URI
+ * (see {@link HOT_STREAK_PLATE_DATA_URI}), so the SVG renders standalone in any
+ * browser tab or `<img src>`. The only `href` is that data URI; no remote refs.
  *
  * Degrade-never-throw (ARCHITECTURE §7): the whole render is wrapped so any
- * unexpected input (NaN, non-finite, non-numeric, `null`/`undefined` state)
- * collapses to a minimal but valid branded fallback card — this function NEVER
- * throws and ALWAYS returns a string that starts with `<svg`.
+ * unexpected input (NaN, non-finite, non-numeric, `null`/`undefined` state) still
+ * yields a valid SVG; a hard failure collapses to the minimal flat-brand
+ * {@link fallbackCard}. This function NEVER throws and ALWAYS starts with `<svg`.
  */
+
+import { HOT_STREAK_PLATE_DATA_URI } from './hot-streak-plate';
 
 /** The streak figures the card projects (a subset of the §4.1 aggregate). */
 export interface ShareCardState {
@@ -29,9 +31,7 @@ export interface ShareCardState {
 /** Brand tokens (CLAUDE.md §8). Single orange accent on near-black. */
 const BG = '#0D1117';
 const ACCENT = '#FF9800';
-const FG = '#E6EDF3';
 const MUTED = '#8B949E';
-const PANEL = '#161B22';
 
 /** UI display clamp (FR-1.7): the true streak may exceed 365; the card does not. */
 const DISPLAY_CAP = 365;
@@ -66,50 +66,68 @@ function fig(value: unknown): string {
   return xmlEscape(String(safeCount(value)));
 }
 
+// Plate geometry: the embedded art is a 1344×798 JPEG (the SVG viewBox). The three
+// number slots were measured off the art: login number sits left of the flame,
+// play number left of the joker card, best number between "Personal best:" & "days".
+const PLATE_W = 1344;
+const PLATE_H = 798;
+const LOGIN_NUM = { x: 478, y: 462 };
+const PLAY_NUM = { x: 815, y: 462 };
+// The "Personal best:" → "days" gap is narrow (~45px); the best number is small
+// and centered in it.
+const BEST_NUM = { x: 561, y: 549 };
+
+// The plate is shot at a slight 3D tilt — the card recedes to the right, so the
+// baked text leans down to the right. Slant the overlaid numbers to match so
+// they sit ON the card plane instead of looking pasted flat. (SVG y-down →
+// positive = clockwise = top leans right / falls to the right.)
+const TILT = 2.6;
+// The streak numbers read a touch squat; stretch them ~12% taller (vertical only)
+// so they fill the slot. Scaled around each number's baseline so x/placement holds.
+const SY_STREAK = 1.12;
+const streakTransform = (x: number, y: number) =>
+  `rotate(${TILT} ${x} ${y}) translate(0 ${y}) scale(1 ${SY_STREAK}) translate(0 ${-y})`;
+
+/** Bold serif number, scaled down for 3-digit values so it stays inside its slot. */
+function numFontSize(text: string): number {
+  return text.length >= 3 ? 90 : 126;
+}
+
 /**
- * Build the brand SVG from already-sanitized figures. Kept separate so the
- * public entrypoint can wrap it in the degrade-never-throw guard.
+ * Build the brand share card: the photoreal "Hot Streak" plate art (embedded as a
+ * self-contained base64 JPEG — no fs, no network) with the live login / play /
+ * best numbers overlaid in a metallic cream serif over their measured slots. The
+ * labels, flame, card and scene are all baked into the plate; only the figures
+ * are dynamic.
  */
 function buildSvg(login: string, play: string, best: string): string {
-  // Layout: a hero "Hot Streak" card. Two big stat columns (login / play) over a
-  // bottom personal-best strip, wordmark top-left, promo tie-in bottom-right.
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Hijack Poker streak card">
+  const NUM_FONT = "Georgia, 'Times New Roman', 'Zilla Slab', serif";
+  // LOGIN + PLAY streak numbers are a bronze-metallic vertical gradient (engraved
+  // look); the PERSONAL BEST number is a bright gold that GLOWS (soft amber halo).
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${PLATE_W}" height="${PLATE_H}" viewBox="0 0 ${PLATE_W} ${PLATE_H}" role="img" aria-label="Hijack Poker Hot Streak card — login ${login}, play ${play}, best ${best} days">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="${BG}"/>
-      <stop offset="1" stop-color="#11161F"/>
+    <filter id="emb" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.6"/>
+    </filter>
+    <linearGradient id="bz" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EAC892"/>
+      <stop offset="0.42" stop-color="#B5824A"/>
+      <stop offset="0.72" stop-color="#8A5E30"/>
+      <stop offset="1" stop-color="#6B4720"/>
     </linearGradient>
-    <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFC246"/>
-      <stop offset="1" stop-color="${ACCENT}"/>
-    </linearGradient>
+    <filter id="glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#FFB733" flood-opacity="0.55"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#FFE19A" flood-opacity="0.55"/>
+    </filter>
   </defs>
 
-  <rect width="1200" height="630" fill="url(#bg)"/>
-  <rect x="0" y="0" width="1200" height="10" fill="${ACCENT}"/>
+  <!-- photoreal plate art (labels, flame, card, scene baked in) -->
+  <image href="${HOT_STREAK_PLATE_DATA_URI}" x="0" y="0" width="${PLATE_W}" height="${PLATE_H}" preserveAspectRatio="xMidYMid slice"/>
 
-  <!-- Wordmark (one contiguous run so "HIJACK POKER" reads as a single string) -->
-  <text x="64" y="96" font-family="Georgia, 'Times New Roman', serif" font-size="48" font-weight="700" letter-spacing="4" fill="${ACCENT}">HIJACK POKER</text>
-  <text x="66" y="138" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="24" letter-spacing="6" fill="${MUTED}">DAILY STREAKS</text>
-
-  <!-- Login streak panel -->
-  <rect x="64" y="190" width="510" height="280" rx="24" fill="${PANEL}" stroke="${ACCENT}" stroke-opacity="0.35"/>
-  <text x="104" y="250" font-family="system-ui, sans-serif" font-size="26" letter-spacing="3" fill="${MUTED}">LOGIN STREAK</text>
-  <text x="104" y="400" font-family="system-ui, sans-serif" font-size="200" font-weight="800" fill="url(#flame)">${login}</text>
-  <text x="430" y="400" font-family="system-ui, sans-serif" font-size="120" fill="${ACCENT}">&#128293;</text>
-
-  <!-- Play streak panel -->
-  <rect x="626" y="190" width="510" height="280" rx="24" fill="${PANEL}" stroke="${ACCENT}" stroke-opacity="0.35"/>
-  <text x="666" y="250" font-family="system-ui, sans-serif" font-size="26" letter-spacing="3" fill="${MUTED}">PLAY STREAK</text>
-  <text x="666" y="400" font-family="system-ui, sans-serif" font-size="200" font-weight="800" fill="${FG}">${play}</text>
-  <text x="992" y="400" font-family="system-ui, sans-serif" font-size="120">&#127183;</text>
-
-  <!-- Personal best strip -->
-  <text x="64" y="540" font-family="system-ui, sans-serif" font-size="40" font-weight="600" fill="${FG}">Personal best: <tspan fill="${ACCENT}">${best}</tspan> days</text>
-
-  <!-- Promo tie-in -->
-  <text x="1136" y="540" text-anchor="end" font-family="system-ui, sans-serif" font-size="32" font-weight="700" letter-spacing="2" fill="${ACCENT}">&#128293; Hot Streak</text>
-  <text x="64" y="592" font-family="system-ui, sans-serif" font-size="24" fill="${MUTED}">Keep your streak alive — Hijack Poker Daily Streaks</text>
+  <!-- live figures overlaid on the measured number slots -->
+  <text x="${LOGIN_NUM.x}" y="${LOGIN_NUM.y}" transform="${streakTransform(LOGIN_NUM.x, LOGIN_NUM.y)}" text-anchor="middle" font-family="${NUM_FONT}" font-size="${numFontSize(login)}" font-weight="700" fill="url(#bz)" filter="url(#emb)">${login}</text>
+  <text x="${PLAY_NUM.x}" y="${PLAY_NUM.y}" transform="${streakTransform(PLAY_NUM.x, PLAY_NUM.y)}" text-anchor="middle" font-family="${NUM_FONT}" font-size="${numFontSize(play)}" font-weight="700" fill="url(#bz)" filter="url(#emb)">${play}</text>
+  <text x="${BEST_NUM.x}" y="${BEST_NUM.y}" transform="rotate(${TILT} ${BEST_NUM.x} ${BEST_NUM.y})" text-anchor="middle" font-family="${NUM_FONT}" font-size="32" font-weight="800" fill="#FFE9A8" filter="url(#glow)">${best}</text>
 </svg>`;
 }
 
