@@ -10,6 +10,7 @@ import { visuallyHidden } from '@mui/utils';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
+  streaksApi,
   useGetStreaksQuery,
   useGetCalendarQuery,
   useCheckInMutation,
@@ -62,6 +63,8 @@ export default function StreakDashboard() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    // Clear the cached streaks data so the next player can't see this one's.
+    dispatch(streaksApi.util.resetApiState());
     dispatch(logout());
     navigate('/login', { replace: true });
   };

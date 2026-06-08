@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { Box, MenuItem, Select, Typography } from '@mui/material';
 import { login, type AppDispatch } from '../store';
+import { streaksApi } from '../store/streaksApi';
 
 /**
  * Seeded demo personas (ASSUMPTIONS A-2): a deliberate 4-persona cast that
@@ -134,6 +135,10 @@ export default function LoginScreen() {
   const [playerId, setPlayerId] = useState('streak-001');
 
   const signIn = (id: string) => {
+    // Drop any cached streaks data before switching players. RTK Query keys its
+    // cache by endpoint+arg (the args here are void/month), so without this the
+    // dashboard would serve the previous persona's data until a hard refresh.
+    dispatch(streaksApi.util.resetApiState());
     dispatch(login(id.trim()));
     navigate('/dashboard', { replace: true });
   };

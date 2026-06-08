@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
@@ -58,6 +58,24 @@ describe('LoginScreen (BL-1, real Provider + router)', () => {
     expect(store.getState().auth.isAuthenticated).toBe(true);
     // ...and we navigated to the dashboard route.
     expect(await screen.findByText('DASHBOARD ROUTE')).toBeInTheDocument();
+  });
+
+  it('Sign In resets the streaks API cache so a new persona never sees stale data', async () => {
+    // Regression: RTK Query keys its cache by endpoint+arg (void/month here), so
+    // switching personas without resetApiState() would serve the previous
+    // player's data until a hard refresh. Sign-in must dispatch the reset.
+    const dispatchSpy = vi.spyOn(store, 'dispatch');
+    renderLogin();
+    await userEvent.click(screen.getByRole('button', { name: /^Sign In$/i }));
+
+    const dispatchedReset = dispatchSpy.mock.calls.some(
+      ([action]) =>
+        typeof action === 'object' &&
+        action !== null &&
+        (action as { type?: string }).type === 'streaksApi/resetApiState'
+    );
+    expect(dispatchedReset).toBe(true);
+    dispatchSpy.mockRestore();
   });
 
   it('Sign Up generates a fresh player- id, logs in, and routes', async () => {
