@@ -25,11 +25,11 @@ import { useSequencer, TIMELINE } from './useSequencer';
 export default function OpenSequence() {
   const navigate = useNavigate();
 
-  // Push (not replace) so /intro stays in history: pressing Back from /login
-  // returns to /intro, which remounts fresh and replays the cinematic from the
-  // top (React Router unmounts/remounts the route — no frozen end-frame).
+  // `replace` (not push) so /intro drops out of history: once the cinematic
+  // hands off to /login → /dashboard, pressing Back doesn't loop you back
+  // through the open. A direct/refreshed visit to /intro still replays it.
   const finish = useCallback(() => {
-    navigate('/login');
+    navigate('/login', { replace: true });
   }, [navigate]);
 
   const seq = useSequencer({ onDone: finish });

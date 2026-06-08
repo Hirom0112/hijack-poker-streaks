@@ -20,7 +20,7 @@ function renderLogin() {
         <MemoryRouter initialEntries={['/login']}>
           <Routes>
             <Route path="/login" element={<LoginScreen />} />
-            <Route path="/" element={<div>DASHBOARD ROUTE</div>} />
+            <Route path="/dashboard" element={<div>DASHBOARD ROUTE</div>} />
           </Routes>
         </MemoryRouter>
       </ThemeProvider>

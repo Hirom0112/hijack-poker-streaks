@@ -15,17 +15,20 @@ const OpenSequence = lazy(() => import('./components/intro/OpenSequence'));
 
 /**
  * BL-1 routing + guard.
- * - Unauthenticated visitors are sent to /intro (cinematic) → /login.
- * - Authenticated visitors land on the dashboard `/`.
- *
- * If the cinematic was already played this session (`introSeen`), the *auto*
- * redirect skips it (returning users land on /login). A direct or refreshed
- * visit to /intro ALWAYS replays — so reloading the tab restarts the open.
+ * - The dashboard has its own URL: `/dashboard`.
+ * - Auth is persisted (localStorage), so a REFRESH on /dashboard stays put.
+ * - The normal flow (intro → login → dashboard) uses `replace`, so Back doesn't
+ *   loop you through the cinematic. A direct/refreshed /intro still replays it.
  */
 function RequireAuth({ children }: { children: ReactElement }) {
   const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
-  // Logged-out visitors to the app root always start at the beginning (the cinematic).
   return isAuthenticated ? children : <Navigate to="/intro" replace />;
+}
+
+/** App root `/`: send authed players to the dashboard, newcomers to the intro. */
+function RootRedirect() {
+  const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
+  return <Navigate to={isAuthenticated ? '/dashboard' : '/intro'} replace />;
 }
 
 /** Black hold while the intro chunk loads (no flash before the cinematic). */
@@ -48,13 +51,14 @@ function App() {
         />
         <Route path="/login" element={<LoginScreen />} />
         <Route
-          path="/"
+          path="/dashboard"
           element={
             <RequireAuth>
               <StreakDashboard />
             </RequireAuth>
           }
         />
+        <Route path="/" element={<RootRedirect />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

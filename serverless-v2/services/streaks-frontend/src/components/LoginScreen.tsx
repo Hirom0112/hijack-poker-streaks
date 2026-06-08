@@ -135,7 +135,7 @@ export default function LoginScreen() {
 
   const signIn = (id: string) => {
     dispatch(login(id.trim()));
-    navigate('/', { replace: true });
+    navigate('/dashboard', { replace: true });
   };
   const signUp = () => signIn(freshPlayerId());
 

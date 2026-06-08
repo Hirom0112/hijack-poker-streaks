@@ -10,14 +10,20 @@ interface AuthState {
   isAuthenticated: boolean;
 }
 
+/**
+ * Rehydrate auth from localStorage so a REFRESH keeps the player on the
+ * dashboard (instead of bouncing back to the cinematic). The intro now plays
+ * on a true first visit / after logout, not on every reload.
+ */
+function loadAuth(): AuthState {
+  const id =
+    typeof localStorage !== 'undefined' ? localStorage.getItem('playerId') : null;
+  return { playerId: id, isAuthenticated: id !== null };
+}
+
 const authSlice = createSlice({
   name: 'auth',
-  // Start logged OUT so the app always opens at the beginning:
-  // localhost:4001 → /intro (cinematic) → login → "Continue as streak-001" → dashboard.
-  initialState: {
-    playerId: null,
-    isAuthenticated: false,
-  } as AuthState,
+  initialState: loadAuth(),
   reducers: {
     login(state, action: PayloadAction<string>) {
       state.playerId = action.payload;
@@ -29,6 +35,9 @@ const authSlice = createSlice({
     logout(state) {
       state.playerId = null;
       state.isAuthenticated = false;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('playerId');
+      }
     },
   },
 });

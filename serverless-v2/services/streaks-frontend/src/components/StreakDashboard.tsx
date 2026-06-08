@@ -1,9 +1,8 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
   CircularProgress,
-  Container,
   Grid,
   Snackbar,
 } from '@mui/material';
@@ -24,6 +23,7 @@ import FreezeStatus from './FreezeStatus';
 import RewardHistory from './RewardHistory';
 import ShareButton from './ShareButton';
 import ImageButton from './ImageButton';
+import ScaleToFit from './ScaleToFit';
 import Editable from '../editor/Editable';
 
 const LOGO = '/assets/dashboard/ui/logo.png';
@@ -41,6 +41,22 @@ function currentUtcMonth(): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
+/** Shift a YYYY-MM month string by `delta` months (UTC). */
+function shiftMonth(ym: string, delta: number): string {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/** The UTC month (YYYY-MM) `days` days before now — the calendar's back-limit. */
+function monthDaysAgo(days: number): string {
+  const d = new Date(Date.now() - days * 86400000);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/** How far back the calendar may page (FR-4.3 demo affordance). */
+const CALENDAR_LOOKBACK_DAYS = 90;
+
 export default function StreakDashboard() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -50,12 +66,18 @@ export default function StreakDashboard() {
     navigate('/login', { replace: true });
   };
 
-  // The demo target seeded with all 5 heat-map states is streak-001 / 2026-04.
-  // Default to that month so the seeded demo populates on load (ASSUMPTIONS A-2).
-  const month = useMemo(
-    () => import.meta.env.VITE_DEMO_MONTH || currentUtcMonth(),
-    []
+  // The calendar opens on the current UTC month (the live, in-progress streak)
+  // and can page back up to 90 days — never into the future. `VITE_DEMO_MONTH`
+  // optionally pins the INITIAL month (e.g. to a fuller past month for a demo).
+  const maxMonth = useMemo(() => currentUtcMonth(), []);
+  const minMonth = useMemo(() => monthDaysAgo(CALENDAR_LOOKBACK_DAYS), []);
+  const [month, setMonth] = useState<string>(
+    () => import.meta.env.VITE_DEMO_MONTH || maxMonth
   );
+  const canPrev = month > minMonth;
+  const canNext = month < maxMonth;
+  const goPrev = () => setMonth((m) => (m > minMonth ? shiftMonth(m, -1) : m));
+  const goNext = () => setMonth((m) => (m < maxMonth ? shiftMonth(m, +1) : m));
 
   const streaksQ = useGetStreaksQuery();
   const calendarQ = useGetCalendarQuery(month);
@@ -68,8 +90,27 @@ export default function StreakDashboard() {
       ?.activity;
   }, [calendarQ.data, streaks?.lastLoginDate]);
 
+  // The check-in toast is driven by LOCAL state (not the mutation's `isSuccess`,
+  // which stays true and left the toast pinned). On success we capture the
+  // message, open the toast, and `reset()` the mutation so an identical repeat
+  // check-in re-fires this effect.
+  const [snackMsg, setSnackMsg] = useState<string | null>(null);
+  useEffect(() => {
+    if (!checkInState.isSuccess || !checkInState.data) return;
+    const d = checkInState.data;
+    setSnackMsg(
+      d.milestoneEarned
+        ? `Milestone! +${d.milestoneEarned.points} points`
+        : d.streakAdvanced
+        ? 'Checked in — streak advanced!'
+        : 'Already checked in today.'
+    );
+    checkInState.reset();
+  }, [checkInState]);
+
   return (
-    <Container maxWidth="lg" sx={{ py: 5 }}>
+    <ScaleToFit designWidth={1440}>
+      <Box sx={{ px: 5, py: 5 }}>
       <Box
         sx={{
           display: 'flex',
@@ -80,7 +121,7 @@ export default function StreakDashboard() {
           mb: 4,
         }}
       >
-        <Box component="h1" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, m: 0 }}>
+        <Box component="h1" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, m: 0, ml: { xs: 0, md: 8 } }}>
           <Editable id="shield" label="Shield crest">
             <Box
               component="img"
@@ -166,6 +207,10 @@ export default function StreakDashboard() {
               <CalendarHeatMap
                 month={calendarQ.data.month}
                 days={calendarQ.data.days}
+                onPrev={goPrev}
+                onNext={goNext}
+                canPrev={canPrev}
+                canNext={canNext}
               />
             )}
           </Grid>
@@ -188,16 +233,16 @@ export default function StreakDashboard() {
       )}
 
       <Snackbar
-        open={checkInState.isSuccess}
+        open={snackMsg !== null}
         autoHideDuration={4000}
-        message={
-          checkInState.data?.milestoneEarned
-            ? `Milestone! +${checkInState.data.milestoneEarned.points} points`
-            : checkInState.data?.streakAdvanced
-            ? 'Checked in — streak advanced!'
-            : 'Already checked in today.'
-        }
+        // `disableWindowBlurListener` keeps the auto-hide timer running even when
+        // the window isn't focused (MUI pauses it by default), which otherwise
+        // left the toast stuck on screen.
+        disableWindowBlurListener
+        onClose={() => setSnackMsg(null)}
+        message={snackMsg ?? ''}
       />
-    </Container>
+      </Box>
+    </ScaleToFit>
   );
 }
