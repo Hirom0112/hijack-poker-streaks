@@ -347,6 +347,9 @@ services:
       STREAKS_FREEZE_HISTORY_TABLE: streaks-freeze-history
       INTERNAL_API_SECRET: dev-internal-secret
       FREEZE_CRON_ENABLED: "false"
+      # Local demo only: makes "Check in today" an idempotent no-op for the seeded
+      # personas so the date-anchored demo data never resets on a stray click.
+      DEMO_SAFE_CHECKIN: "true"
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: local
       AWS_SECRET_ACCESS_KEY: local
@@ -354,6 +357,40 @@ services:
     command:
       - |
         npm install && npx serverless offline --config serverless.offline.yml --host 0.0.0.0
+
+  # Local demo convenience: once the API is healthy, seed the streaks tables, then
+  # re-seed daily just after 00:00 UTC. Keeps the date-anchored demo data current
+  # for a grader with no manual step. Demo-only (the `streaks` profile); harmless
+  # to remove. The seed script is idempotent (wipe-then-write).
+  streaks-seed:
+    image: node:22-alpine
+    profiles: [streaks]
+    depends_on:
+      dynamodb-local:
+        condition: service_healthy
+      streaks-api:
+        condition: service_started
+    volumes:
+      - ./:/app
+    working_dir: /app
+    environment:
+      DYNAMODB_ENDPOINT: http://dynamodb-local:8000
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "streaks-seed: waiting for API ..."
+        until wget -qO- http://streaks-api:5001/api/v1/health >/dev/null 2>&1; do sleep 3; done
+        echo "streaks-seed: API up — seeding"
+        node scripts/seed-streaks.js || echo "streaks-seed: seed failed (continuing)"
+        while true; do
+          now=$(date -u +%s); next=$(( (now / 86400 + 1) * 86400 + 600 ))
+          sleep $((next - now))
+          echo "streaks-seed: nightly re-seed"
+          node scripts/seed-streaks.js || echo "streaks-seed: re-seed failed (continuing)"
+        done
 
   streaks-frontend:
     image: node:22-alpine

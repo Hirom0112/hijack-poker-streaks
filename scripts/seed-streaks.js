@@ -100,12 +100,20 @@ function mulberry32(seed) {
 }
 const rand = mulberry32(Number(process.env.SEED_RANDOM) || 0x5734ea7);
 
-// The day everything is anchored to (UTC). Pinned to the last day of the demo
-// month so the curated month is fully "in the past" and renders identically
-// regardless of the real calendar date. The demo month is derived from it and
-// matches the frontend's VITE_DEMO_MONTH (2026-04).
-const ANCHOR_DATE = process.env.SEED_ANCHOR_DATE || '2026-04-30';
-const DEMO_MONTH = ANCHOR_DATE.slice(0, 7); // 'YYYY-MM'
+// The day everything is anchored to (UTC). Defaults to TODAY, so the current
+// month is populated and "live": the dashboard calendar defaults to this month
+// and can page back up to 90 days. Override with SEED_ANCHOR_DATE=YYYY-MM-DD for
+// a fully reproducible dataset (e.g. in tests).
+//
+// NOTE: because the dataset is anchored to the seed day (not a fixed past month),
+// it DRIFTS with the wall clock — re-run this seed right before a demo. It stays
+// internally coherent and check-in-safe: the active personas' streaks run THROUGH
+// the anchor day, so a same-day check-in is an idempotent no-op (never a reset).
+const ANCHOR_DATE = process.env.SEED_ANCHOR_DATE || new Date().toISOString().slice(0, 10);
+const ANCHOR_MONTH = ANCHOR_DATE.slice(0, 7); // 'YYYY-MM' of the anchor ("today")
+// Days of history to generate, ending at (and including) the anchor. > 90 so the
+// earliest page the dashboard allows (90 days back) still has rows to show.
+const RANGE_DAYS = 95;
 
 // The milestone ladder — mirrors src/config/milestones.ts (the TS single source;
 // inlined here because this CJS tool can't import the TS module). 3/7/14/30/60/90.
@@ -127,13 +135,67 @@ function nextMilestone(days) {
 }
 
 // ─── Persona definitions ─────────────────────────────────────────────────────
-// `script` is one code per day of the demo month (Apr 1 → Apr 30):
+// Each persona's `script` is a CODE ARRAY of length RANGE_DAYS, one code per day,
+// oldest first; index RANGE_DAYS-1 is the anchor ("today"). Codes:
 //   P=played  L=login-only  F=freeze-protected miss  X=break  .=absent(none)
-// `carry*` is the streak/best each persona walked into the month with (their
-// pre-demo history); `historyRewards` are milestones earned BEFORE the demo
-// month, surfaced in the reward log with back-dated timestamps.
-function script(s) {
-  return s.trim().split(/\s+/);
+// `carry*` is the streak/best each persona walked in with (pre-range history);
+// `historyRewards` are milestones earned before the range, surfaced in the log.
+
+/** A RANGE_DAYS array filled with one code. */
+function fill(ch) {
+  return Array.from({ length: RANGE_DAYS }, () => ch);
+}
+/** Set the code `k` days before the anchor (k=0 → today, 1 → yesterday, …). */
+function setFromEnd(arr, k, ch) {
+  arr[RANGE_DAYS - 1 - k] = ch;
+}
+
+// The Grinder: daily player running a 12-day login streak THROUGH today, with a
+// real break ~11 days ago (red, prior month), two older breaks that keep "best"
+// realistic (~30), a free-monthly freeze save + a login-only day in the CURRENT
+// month (blue + light), played days everywhere, and the month's future days
+// rendering as `none`. Covers all 5 states across the two most-recent months.
+function grinderScript() {
+  const s = fill('P');
+  for (let i = 0; i < RANGE_DAYS; i++) if (i % 6 === 2) s[i] = 'L'; // periodic login-only
+  s[5] = '.'; s[24] = '.'; s[25] = '.'; // a few far-back absences → `none`
+  setFromEnd(s, 70, 'X'); // older break (~10 weeks ago)
+  setFromEnd(s, 41, 'X'); // older break (~6 weeks ago) → keeps best ~30
+  setFromEnd(s, 11, 'X'); // recent break → current login streak = 12 today
+  for (let k = 0; k <= 10; k++) setFromEnd(s, k, 'P'); // last 11 days clean + active
+  setFromEnd(s, 7, 'L'); // login-only in the current month (light)
+  setFromEnd(s, 6, 'F'); // free-monthly freeze save in the current month (blue)
+  return s;
+}
+
+// The Legend: perfect attendance; walks in deep so login/play sail past 90
+// ("Max milestone reached"). Freezes banked, never used.
+function legendScript() {
+  return fill('P');
+}
+
+// The Newcomer: just joined — absent the whole range except the last two days,
+// so login=2 / play=1, with empty reward + freeze logs.
+function newcomerScript() {
+  const s = fill('.');
+  setFromEnd(s, 1, 'L');
+  setFromEnd(s, 0, 'P');
+  return s;
+}
+
+// The Comeback: a lapsed pro. One active spell ~7 weeks back — continues an old
+// streak to its best (47), a real break (red), a thin comeback with a freeze
+// save (blue) — then goes quiet through today. Best ≫ current; old milestones
+// still in the log.
+function comebackScript() {
+  const s = fill('.');
+  const b = 42; // start of the spell (~53 days ago)
+  s[b] = 'P'; s[b + 1] = 'P'; s[b + 2] = 'L'; // → 45, 46, 47 (best)
+  s[b + 3] = 'X';                              // break (red)
+  s[b + 4] = 'L'; s[b + 5] = 'P'; s[b + 6] = 'P'; // thin comeback
+  s[b + 7] = 'F';                              // freeze save (blue)
+  s[b + 8] = 'L';
+  return s;
 }
 
 const PERSONAS = [
@@ -141,11 +203,7 @@ const PERSONAS = [
     id: 'streak-001',
     name: 'The Grinder',
     startFreezes: 2,
-    // All 5 calendar states: played(green), login-only(light), freeze(blue, Apr10),
-    // break(red, Apr19), absent(none, Apr17-18). Mid streak (12) after one break.
-    script: script(`
-      P P L P P P L P P F P P P L P P . . X P P L P P P P L P P P
-    `),
+    script: grinderScript(),
     carryLogin: 0,
     carryPlay: 0,
   },
@@ -153,13 +211,11 @@ const PERSONAS = [
     id: 'streak-002',
     name: 'The Legend',
     startFreezes: 2,
-    // Perfect attendance all month; walks in mid-streak so login crosses 90
-    // (max milestone) and play reaches 90 too. Freezes banked, never used.
-    script: script(Array.from({ length: 30 }, () => 'P').join(' ')),
-    carryLogin: 65,
-    carryPlay: 60,
-    carryBestLogin: 65,
-    carryBestPlay: 60,
+    script: legendScript(),
+    carryLogin: 80,
+    carryPlay: 75,
+    carryBestLogin: 80,
+    carryBestPlay: 75,
     historyRewards: [
       { axis: 'login', milestone: 3, daysAgo: 150 },
       { axis: 'login', milestone: 7, daysAgo: 146 },
@@ -177,12 +233,7 @@ const PERSONAS = [
     id: 'streak-003',
     name: 'The Newcomer',
     startFreezes: 1,
-    // Just joined at the end of the month: nothing but the last two days, so
-    // streaks are tiny (login 2 / play 1), the reward + freeze logs are EMPTY,
-    // and the milestone bar reads "1 more day to your first reward".
-    script: script(`
-      . . . . . . . . . . . . . . . . . . . . . . . . . . . . L P
-    `),
+    script: newcomerScript(),
     carryLogin: 0,
     carryPlay: 0,
   },
@@ -190,12 +241,7 @@ const PERSONAS = [
     id: 'streak-004',
     name: 'The Comeback',
     startFreezes: 2,
-    // A lapsed pro: continues an old streak to its best (47), then a real break
-    // (Apr07, red), a thin comeback with one freeze save (Apr11, blue), then goes
-    // quiet. Best ≫ current, login ≫ play. Old milestones still in the log.
-    script: script(`
-      P P L . . . X L L P F L . . . . . . . . . . . . . . . . . .
-    `),
+    script: comebackScript(),
     carryLogin: 44,
     carryPlay: 0,
     carryBestLogin: 44,
@@ -223,9 +269,13 @@ function daysInMonth(ym) {
   return new Date(Date.UTC(y, m, 0)).getUTCDate();
 }
 
-/** The `YYYY-MM-DD` of day index `i` (0-based) within the demo month. */
-function dayOfMonth(i) {
-  return `${DEMO_MONTH}-${String(i + 1).padStart(2, '0')}`;
+/**
+ * The `YYYY-MM-DD` at range index `i` (0-based, oldest first). Index
+ * RANGE_DAYS-1 is the anchor ("today"); index 0 is RANGE_DAYS-1 days earlier.
+ */
+function dayAtIndex(i) {
+  const t = new Date(`${ANCHOR_DATE}T00:00:00Z`).getTime() - (RANGE_DAYS - 1 - i) * 86400000;
+  return isoDate(new Date(t));
 }
 
 /** The UTC `YYYY-MM-DD` immediately before `dateStr`. */
@@ -310,19 +360,20 @@ function buildPersona(p) {
   let bestPlayStreak = p.carryBestPlay != null ? p.carryBestPlay : playStreak;
   let freezesAvailable = p.startFreezes;
   let freezesUsedThisMonth = 0;
+  let freezesUsedTotal = 0;
   let lastLoginDate = null;
-  // Seed a carried play streak as if the last play was the day before the month
+  // Seed a carried play streak as if the last play was the day before the range
   // begins, so the first played day CONTINUES it (login carries automatically
   // since it just increments on each active day; play uses a consecutive-day gap).
-  let lastPlayDate = (p.carryPlay || 0) > 0 ? priorDay(dayOfMonth(0)) : null;
+  let lastPlayDate = (p.carryPlay || 0) > 0 ? priorDay(dayAtIndex(0)) : null;
 
-  const days = daysInMonth(DEMO_MONTH);
+  const days = RANGE_DAYS;
   if (p.script.length !== days) {
-    throw new Error(`${p.id}: script has ${p.script.length} codes but ${DEMO_MONTH} has ${days} days`);
+    throw new Error(`${p.id}: script has ${p.script.length} codes but RANGE_DAYS is ${days}`);
   }
 
   for (let i = 0; i < days; i++) {
-    const dateStr = dayOfMonth(i);
+    const dateStr = dayAtIndex(i);
     const ts = `${dateStr}T12:00:00.000Z`;
     const code = p.script[i];
 
@@ -336,8 +387,9 @@ function buildPersona(p) {
     if (code === 'F') {
       // A single missed day, protected by a freeze → carry the streak across it.
       freezesAvailable -= 1;
-      freezesUsedThisMonth += 1;
-      const source = freezesUsedThisMonth === 1 ? 'free_monthly' : 'purchased';
+      freezesUsedTotal += 1;
+      if (dateStr.slice(0, 7) === ANCHOR_MONTH) freezesUsedThisMonth += 1;
+      const source = freezesUsedTotal === 1 ? 'free_monthly' : 'purchased';
       freezeRows.push({ playerId: p.id, date: dateStr, source, createdAt: ts });
       loginStreak += 1;
       freezeUsed = true;
@@ -407,7 +459,7 @@ function buildPersona(p) {
     lastPlayDate,
     freezesAvailable,
     freezesUsedThisMonth,
-    lastFreezeGrantDate: DEMO_MONTH,
+    lastFreezeGrantDate: ANCHOR_MONTH,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: `${ANCHOR_DATE}T23:59:59.000Z`,
   };
@@ -474,7 +526,7 @@ async function wipePlayer(playerId) {
 }
 
 async function seed() {
-  console.log(`Seeding streaks data to ${ENDPOINT} (anchor ${ANCHOR_DATE}, demo month ${DEMO_MONTH}) ...`);
+  console.log(`Seeding streaks data to ${ENDPOINT} (anchor ${ANCHOR_DATE}, ${RANGE_DAYS}-day range, month ${ANCHOR_MONTH}) ...`);
 
   // Wipe-then-write: clear every seed id (incl. legacy streak-005..010 from the
   // old 10-player seed) so a re-run lands on a clean, deterministic dataset.
