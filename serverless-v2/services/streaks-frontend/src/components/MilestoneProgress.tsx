@@ -51,10 +51,10 @@ function LadderBar({
         aria-valuemax={100}
         sx={{
           position: 'relative',
-          height: 12,
-          borderRadius: 6,
+          height: 20,
+          borderRadius: 10,
           backgroundColor: 'rgba(20,12,6,0.55)',
-          boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.6)',
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.65), inset 0 0 0 1px rgba(201,162,75,0.35)',
           overflow: 'hidden',
         }}
       >
@@ -63,7 +63,7 @@ function LadderBar({
             position: 'absolute',
             inset: 0,
             width: `${pct}%`,
-            borderRadius: 6,
+            borderRadius: 10,
             backgroundColor: accent,
             backgroundImage:
               'linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 45%, rgba(0,0,0,0.22) 100%)',
@@ -91,7 +91,7 @@ function LadderBar({
         })}
       </Box>
       {/* ladder labels */}
-      <Box sx={{ position: 'relative', height: 15, mt: 0.25 }}>
+      <Box sx={{ position: 'relative', height: 18, mt: 0.5 }}>
         {LADDER.map((v, i) => {
           const p = ((i + 1) / LADDER.length) * 100;
           const reached = streak >= v;
@@ -103,7 +103,7 @@ function LadderBar({
                 position: 'absolute',
                 left: `${p}%`,
                 transform: 'translateX(-50%)',
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: isNext ? 800 : 600,
                 color: isNext ? accent : reached ? 'text.primary' : 'text.secondary',
               }}
@@ -164,7 +164,7 @@ export default function MilestoneProgress({
   const loginAccent = '#E08A3C';
   const playAccent = '#D9A441';
   return (
-    <Panel editId="card-milestone" editLabel="Next Milestone card" innerSx={{ display: 'flex', flexDirection: 'column', py: 0.5 }}>
+    <Panel variant="top" editId="card-milestone" editLabel="Next Milestone card" innerSx={{ display: 'flex', flexDirection: 'column', py: 0.5 }}>
       <Typography variant="h6" sx={{ textAlign: 'center' }}>
         Next Milestone
       </Typography>

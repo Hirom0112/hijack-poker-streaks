@@ -1,4 +1,6 @@
-import { Box, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, IconButton, Tooltip, Typography, useTheme } from '@mui/material';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import type { Activity, ActivityDay } from '../types/streaks.types';
 import Panel from './Panel';
 import Rule from './Rule';
@@ -14,6 +16,19 @@ export const ACTIVITY_COLORS: Record<Activity, string> = {
   played: '#2EA043',
   freeze: '#388BFD',
   broken: '#F85149',
+};
+
+/**
+ * Brighter, more-saturated glow colors for the painted cell icons — the cell-tint
+ * palette (`theme.palette.heatmap`) reads too dim behind an icon on tan leather,
+ * especially the gold `login_only`. These are tuned to pop as a halo.
+ */
+const GLOW_COLORS: Record<Activity, string> = {
+  none: 'transparent',
+  login_only: '#F6C84C', // brighter gold than the tan cell-tint
+  played: '#46C172',
+  freeze: '#7CC6E8',
+  broken: '#F2645C',
 };
 
 /** Painted glyph per state (none = empty slot, no icon). */
@@ -66,6 +81,12 @@ function weekday(dateStr: string): number {
 interface CalendarHeatMapProps {
   month: string;
   days: ActivityDay[];
+  /** Page to the previous month (disabled past the 90-day look-back). */
+  onPrev?: () => void;
+  /** Page to the next month (disabled at the current month — no future). */
+  onNext?: () => void;
+  canPrev?: boolean;
+  canNext?: boolean;
 }
 
 /**
@@ -74,14 +95,44 @@ interface CalendarHeatMapProps {
  * leather well carrying a painted icon (person / cards / ice / broken-heart), or
  * an empty well for `none`. Each cell keeps its tooltip + testid + aria-label.
  */
-export default function CalendarHeatMap({ month, days }: CalendarHeatMapProps) {
+export default function CalendarHeatMap({
+  month,
+  days,
+  onPrev,
+  onNext,
+  canPrev = false,
+  canNext = false,
+}: CalendarHeatMapProps) {
   const theme = useTheme();
   const colors = theme.palette.heatmap ?? ACTIVITY_COLORS;
   const leadOffset = days.length ? weekday(days[0].date) : 0;
 
   return (
     <Panel editId="card-calendar" editLabel="Calendar card" innerSx={{ py: 0.5 }}>
-      <Typography variant="h6">{fmtMonth(month)}</Typography>
+      {/* month header with prev/next paging arrows, title centered */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+        <IconButton
+          aria-label="Previous month"
+          size="small"
+          onClick={onPrev}
+          disabled={!canPrev}
+          sx={{ color: 'secondary.main' }}
+        >
+          <ChevronLeftIcon />
+        </IconButton>
+        <Typography variant="h6" sx={{ textAlign: 'center', minWidth: 150 }}>
+          {fmtMonth(month)}
+        </Typography>
+        <IconButton
+          aria-label="Next month"
+          size="small"
+          onClick={onNext}
+          disabled={!canNext}
+          sx={{ color: 'secondary.main' }}
+        >
+          <ChevronRightIcon />
+        </IconButton>
+      </Box>
       <Rule my={1} />
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.75 }}>
         {/* weekday header row (S M T W T F S) */}
@@ -115,6 +166,7 @@ export default function CalendarHeatMap({ month, days }: CalendarHeatMapProps) {
                 data-activity={activity}
                 aria-label={title}
                 sx={{
+                  position: 'relative',
                   aspectRatio: '1 / 1',
                   borderRadius: 1,
                   backgroundColor: 'rgba(20,12,6,0.5)',
@@ -136,10 +188,12 @@ export default function CalendarHeatMap({ month, days }: CalendarHeatMapProps) {
                     position: 'absolute',
                     top: 2,
                     left: 4,
-                    fontSize: 9,
-                    fontWeight: 600,
+                    fontSize: 10,
+                    fontWeight: 700,
                     lineHeight: 1,
-                    color: 'rgba(247,236,212,0.45)',
+                    color: 'rgba(247,236,212,0.9)',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                    zIndex: 1,
                     pointerEvents: 'none',
                   }}
                 >
@@ -154,8 +208,10 @@ export default function CalendarHeatMap({ month, days }: CalendarHeatMapProps) {
                       width: '64%',
                       height: '64%',
                       objectFit: 'contain',
-                      opacity: 0.92,
-                      filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.5))',
+                      opacity: 0.97,
+                      // colored glow keyed to the activity (red heart, blue freeze,
+                      // green played, gold login) + a dark contact shadow for depth
+                      filter: `drop-shadow(0 0 7px ${GLOW_COLORS[activity]}) drop-shadow(0 0 3px ${GLOW_COLORS[activity]}) drop-shadow(0 1px 1px rgba(0,0,0,0.65))`,
                     }}
                   />
                 )}

@@ -15,12 +15,12 @@ export default function Rule({ my = 1.25 }: RuleProps) {
     <Box
       sx={{
         my,
-        height: '2px',
+        height: '4px',
         width: '100%',
-        borderRadius: 1,
+        borderRadius: 2,
         background:
-          'linear-gradient(90deg, transparent 0%, rgba(201,162,75,0.55) 18%, rgba(201,162,75,0.6) 50%, rgba(201,162,75,0.55) 82%, transparent 100%)',
-        boxShadow: '0 1px 0 rgba(0,0,0,0.35)',
+          'linear-gradient(90deg, transparent 0%, rgba(214,176,92,0.85) 15%, rgba(233,201,128,0.95) 50%, rgba(214,176,92,0.85) 85%, transparent 100%)',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,235,190,0.4)',
       }}
     />
   );

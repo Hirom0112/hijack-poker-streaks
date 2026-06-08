@@ -1,7 +1,8 @@
 import { Box, Typography } from '@mui/material';
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import Panel from './Panel';
 import Rule from './Rule';
+
+const SHIELD_FIRE = '/assets/dashboard/icons/shield-fire.png';
 
 interface PersonalBestProps {
   bestLoginStreak: number;
@@ -16,7 +17,12 @@ export default function PersonalBest({
   return (
     <Panel editId="card-personalbest" editLabel="Personal Best card" innerSx={{ textAlign: 'center' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1.5 }}>
-        <EmojiEventsIcon sx={{ color: 'primary.main' }} />
+        <Box
+          component="img"
+          src={SHIELD_FIRE}
+          alt=""
+          sx={{ width: 90, height: 90, objectFit: 'contain', filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.6))' }}
+        />
         <Typography variant="h6">Personal Best</Typography>
       </Box>
       <Rule my={1} />
