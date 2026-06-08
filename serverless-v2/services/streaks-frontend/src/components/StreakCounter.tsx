@@ -18,29 +18,39 @@ const SCALE_CAP = 365;
 const scaleFor = (streak: number) =>
   Math.min(1.4, 1 + Math.min(Math.max(streak, 0), SCALE_CAP) * 0.006);
 
-const FIRE_SRC = '/assets/dashboard/icons/icon-fire.png';
+const POT_SRC = '/assets/dashboard/icons/pot.png';
+const FLAMES_SRC = '/assets/dashboard/icons/flames.png';
 const CARDS_SRC = '/assets/dashboard/icons/ace.png';
 
 /**
- * A gently "alive" brazier: ONE painted image that very slowly breathes (a tiny
- * scaleY + brightness lift anchored at the base) under a soft, slow ember glow —
- * no overlapping blended layers, so there's no ghosting/blur. The streak number
- * is embossed in gold on the flames. Honors `prefers-reduced-motion`.
+ * Flame size as a function of the login streak: a tiny ember at 0, a full roar by
+ * ~30 days, with a slight extra lift toward 90. The POT stays a fixed size; only
+ * the flames grow — so the brazier is "alive + interactive".
+ */
+function flameScale(streak: number): number {
+  const s = Math.max(0, streak);
+  if (s >= 20) return Math.min(1.2, 1 + (s - 20) * 0.0016);
+  return 0.62 + (s / 20) * 0.38; // 0.62 → 1.0 across the first 20 days
+}
+
+/**
+ * The interactive brazier: a STATIC pot with a separate FLAME layer that grows
+ * with the login streak and gently breathes (no blended layers → no blur). The
+ * streak number is embossed in gold over the flames. Honors prefers-reduced-motion.
  */
 function FlameMotif({ value }: { value: number }) {
   return (
-    <Box sx={{ position: 'relative', width: 104, height: 142 }}>
-      {/* soft, slow ember glow */}
+    <Box sx={{ position: 'relative', width: 156, height: 172 }}>
+      {/* soft, slow ember glow at the rim */}
       <Box
         sx={{
           position: 'absolute',
           left: '50%',
-          bottom: 12,
-          width: 88,
-          height: 78,
+          bottom: 30,
+          width: 84,
+          height: 56,
           transform: 'translateX(-50%)',
-          background:
-            'radial-gradient(circle, rgba(255,150,45,0.45) 0%, rgba(255,90,20,0) 70%)',
+          background: 'radial-gradient(circle, rgba(255,150,45,0.4) 0%, rgba(255,90,20,0) 70%)',
           filter: 'blur(6px)',
           borderRadius: '50%',
           pointerEvents: 'none',
@@ -52,42 +62,64 @@ function FlameMotif({ value }: { value: number }) {
           '@media (prefers-reduced-motion: reduce)': { animation: 'none', opacity: 0.5 },
         }}
       />
-      {/* the brazier — a slow, subtle breathe (no blend layers → no blur) */}
+      {/* the pot — static, fixed size */}
       <Box
         component="img"
-        src={FIRE_SRC}
+        src={POT_SRC}
         alt=""
+        sx={{ position: 'absolute', left: 0, right: 0, bottom: 0, mx: 'auto', width: 138, display: 'block' }}
+      />
+      {/* the flames — scaled by the streak, rising from inside the pot */}
+      <Box
+        data-testid="motif-flame"
+        aria-label="flame"
+        style={{ transform: `scale(${flameScale(value)})` }}
         sx={{
           position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'contain',
+          left: 0,
+          right: 0,
+          bottom: 34,
+          display: 'flex',
+          justifyContent: 'center',
           transformOrigin: 'bottom center',
-          animation: 'flameBreathe 4s ease-in-out infinite',
-          '@keyframes flameBreathe': {
-            '0%, 100%': { transform: 'scaleY(1)', filter: 'brightness(1)' },
-            '50%': { transform: 'scaleY(1.025)', filter: 'brightness(1.06)' },
-          },
-          '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+          pointerEvents: 'none',
         }}
-      />
-      {/* the streak number embossed in gold on the flames */}
+      >
+        <Box
+          component="img"
+          src={FLAMES_SRC}
+          alt=""
+          sx={{
+            height: 142,
+            width: 'auto',
+            objectFit: 'contain',
+            transformOrigin: 'bottom center',
+            animation: 'flameBreathe 4s ease-in-out infinite',
+            '@keyframes flameBreathe': {
+              '0%, 100%': { transform: 'scaleY(1)', filter: 'brightness(1)' },
+              '50%': { transform: 'scaleY(1.03)', filter: 'brightness(1.06)' },
+            },
+            '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+          }}
+        />
+      </Box>
+      {/* the streak number embossed in gold over the flames */}
       <Typography
         aria-hidden
         sx={{
           position: 'absolute',
           left: '50%',
-          top: '46%',
+          top: '44%',
           transform: 'translate(-50%, -50%)',
           fontFamily: '"Zilla Slab", Georgia, serif',
           fontWeight: 800,
-          fontSize: value >= 100 ? 28 : 34,
+          fontSize: value >= 100 ? 26 : 32,
           color: '#F6D98A',
           textShadow:
-            '0 2px 5px rgba(90,20,0,0.85), 0 0 3px rgba(0,0,0,0.7), 0 1px 0 rgba(255,220,140,0.5)',
+            '0 2px 5px rgba(90,20,0,0.9), 0 0 3px rgba(0,0,0,0.8), 0 1px 0 rgba(255,220,140,0.5)',
           pointerEvents: 'none',
           lineHeight: 1,
+          zIndex: 2,
         }}
       >
         {value}
@@ -103,7 +135,6 @@ function FlameMotif({ value }: { value: number }) {
  * The motif grows with the streak.
  */
 export default function StreakCounter({ label, value, best, motif }: StreakCounterProps) {
-  const scale = scaleFor(value);
   const isFlame = motif === 'flame';
 
   return (
@@ -139,20 +170,18 @@ export default function StreakCounter({ label, value, best, motif }: StreakCount
         </Box>
 
         {/* right: the motif (grows with the streak) */}
-        <Box
-          data-testid={`motif-${motif}`}
-          aria-label={motif}
-          style={{ transform: `scale(${scale})` }}
-          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-        >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           {isFlame ? (
             <FlameMotif value={value} />
           ) : (
             <Box
               component="img"
+              data-testid="motif-cards"
+              aria-label="cards"
               src={CARDS_SRC}
               alt=""
-              sx={{ width: 124, height: 124, objectFit: 'contain' }}
+              style={{ transform: `scale(${scaleFor(value)})` }}
+              sx={{ width: 124, height: 124, objectFit: 'contain', transformOrigin: 'center' }}
             />
           )}
         </Box>

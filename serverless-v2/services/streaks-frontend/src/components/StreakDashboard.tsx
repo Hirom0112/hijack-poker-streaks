@@ -158,7 +158,7 @@ export default function StreakDashboard() {
           </Grid>
           {/* right column: personal best stacked over the freeze status */}
           <Grid item xs={12} md={4}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, height: '100%' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               <PersonalBest
                 bestLoginStreak={streaks.bestLoginStreak}
                 bestPlayStreak={streaks.bestPlayStreak}
