@@ -112,6 +112,7 @@ Quick map (full reference in §8):
 | 4.7 | `POST` | `/api/v1/admin/streaks/freezes/grant` | Internal secret (admin) | FR-3.3 |
 | 4.8 | `GET`  | `/api/v1/admin/streaks/players/{playerId}/history` | Internal secret (admin) | FR-8 |
 | 4.9 | `GET`  | `/api/v1/player/streaks/share-card` | Player | FR-9 |
+| 4.10 | `GET`  | `/api/v1/player/streaks/badges` | Player | FR-5.4 (derived) |
 
 > **Content-Type note.** Every endpoint returns `application/json` **except 4.9 `share-card`**, which returns `image/svg+xml` by default (and optionally `image/png` via `?format=png` — ASSUMPTION, see §4.9). All error responses are `application/json` on every endpoint (§1, §3).
 
@@ -724,6 +725,61 @@ A later hand the same day (idempotent no-op):
 
 ---
 
+### 4.10 `GET /api/v1/player/streaks/badges`
+
+**Purpose.** Return the player's **badge shelf** — a cosmetic achievement view layered on the milestone ladder, for the dashboard's badge/trophy UI. Each streak axis (`login`, `play`) exposes all **six** rungs (3/7/14/30/60/90) with a themed `name` + `tier` and whether the player has **ever** earned it.
+
+**Auth.** Player (`X-Player-Id`) — same stubbed player auth as §4.1/§4.4.
+
+**Params.** None.
+
+**Derivation (read-only projection — NO storage change).** This endpoint is a **pure derived view**: it adds no table, writes nothing, and there is no migration. It is computed at request time from data the engine already stores:
+
+- `earned = (axis best-ever streak) >= milestone`, using **`bestLoginStreak` / `bestPlayStreak`** from the player aggregate (§4.1). Because the *best* streaks are monotonic, **a badge is PERMANENT** — it never un-earns when the current streak breaks. A never-seen player (no record) derives best streaks of `0`, so every rung is `earned:false` (returned `200`, never `404`).
+- `earnedAt` = the `createdAt` of the **earliest** matching reward row for that axis+milestone, read from the existing `streaks-rewards` table via the same `Query` that backs §4.4 (newest-first; **no `Scan`**, NFR-8). It is `null` when no reward row exists for that rung — which legitimately happens for milestones earned before reward-awarding existed, or for an `earned:true` rung whose reward row was pruned. `earned` is therefore the source of truth for "has this badge"; `earnedAt` is a best-effort timestamp.
+- The 6+6 `name`/`tier` mapping is the **single source of truth** in `src/config/badges.ts` (`BADGE_LADDER`), kept in lock-step with the `MILESTONES` day list. `tier` is one of `tin | copper | bronze | silver | gold | platinum`, ascending in prestige across the six rungs. Badges do **not** affect points, the `streak_bonus` transaction, or the FR-7 notification contract.
+
+**Success — `200 OK`.** An object with two axis arrays, each ordered **milestone-ascending** (always all six rungs).
+
+```json
+{
+  "login": [
+    { "milestone": 3,  "name": "Greenhorn",       "tier": "tin",      "earned": true,  "earnedAt": "2026-02-09T08:03:55Z" },
+    { "milestone": 7,  "name": "Deputy",          "tier": "copper",   "earned": true,  "earnedAt": "2026-02-13T08:03:55Z" },
+    { "milestone": 14, "name": "Sheriff",         "tier": "bronze",   "earned": true,  "earnedAt": null },
+    { "milestone": 30, "name": "Marshal",         "tier": "silver",   "earned": false, "earnedAt": null },
+    { "milestone": 60, "name": "Ranger Captain",  "tier": "gold",     "earned": false, "earnedAt": null },
+    { "milestone": 90, "name": "Frontier Legend", "tier": "platinum", "earned": false, "earnedAt": null }
+  ],
+  "play": [
+    { "milestone": 3,  "name": "Anted In",         "tier": "tin",      "earned": false, "earnedAt": null },
+    { "milestone": 7,  "name": "Card Sharp",       "tier": "copper",   "earned": false, "earnedAt": null },
+    { "milestone": 14, "name": "Dead Man's Hand",  "tier": "bronze",   "earned": false, "earnedAt": null },
+    { "milestone": 30, "name": "Quick Draw",       "tier": "silver",   "earned": false, "earnedAt": null },
+    { "milestone": 60, "name": "High Roller",      "tier": "gold",     "earned": false, "earnedAt": null },
+    { "milestone": 90, "name": "Royal Flush",      "tier": "platinum", "earned": false, "earnedAt": null }
+  ]
+}
+```
+
+**Field reference (per badge).**
+
+| Field | Type | Notes |
+|---|---|---|
+| `milestone` | integer | Rung length: 3/7/14/30/60/90 (mirrors the §5.2 ladder). |
+| `name` | string | Themed badge name (`BADGE_LADDER`, single source of truth). |
+| `tier` | enum | `tin` \| `copper` \| `bronze` \| `silver` \| `gold` \| `platinum` — cosmetic prestige, ascending. |
+| `earned` | boolean | `true` iff the axis **best-ever** streak ≥ `milestone`. **Permanent** — never resets on a streak break. |
+| `earnedAt` | ISO-8601 UTC \| `null` | `createdAt` of the earliest matching reward row for that axis+milestone, or `null` if none exists. |
+
+> **No storage change.** Badges are a read-only PROJECTION over existing data (the player aggregate's `bestLoginStreak`/`bestPlayStreak` + the `streaks-rewards` rows). No new table, no migration, no write path — the endpoint never mutates state.
+
+**Alias.** `GET /api/v1/streaks/badges` is mounted as the backward-compatible alias (§7), routed to the same handler.
+
+**Errors.** `401` (no/empty `X-Player-Id`), `500`. A never-seen player → `200` with all-unearned badges (never `404`).
+
+---
+
 ## 5. Data dictionary
 
 ### 5.1 `activity` enum (calendar day status — §4.3)
@@ -807,6 +863,7 @@ Two write paths are **once-per-UTC-day idempotent** (NFR-2), backed by DynamoDB 
 | `POST` | `/api/v1/player/streaks/check-in` | `X-Player-Id` | none | `200` | Yes (per UTC day) |
 | `GET`  | `/api/v1/player/streaks/calendar?month=YYYY-MM` | `X-Player-Id` | — | `200` | n/a (read) |
 | `GET`  | `/api/v1/player/streaks/rewards` | `X-Player-Id` | — | `200` | n/a (read) |
+| `GET`  | `/api/v1/player/streaks/badges` | `X-Player-Id` | — | `200` | n/a (read) |
 | `GET`  | `/api/v1/player/streaks/freezes` | `X-Player-Id` | — | `200` | n/a (read) |
 | `POST` | `/internal/streaks/hand-completed` | `X-Internal-Secret` | `{ playerId, tableId, handId, completedAt }` | `200` | Yes (per UTC day) |
 | `POST` | `/api/v1/admin/streaks/freezes/grant` | `X-Internal-Secret` | `{ playerId, count }` | `200` | **No** |

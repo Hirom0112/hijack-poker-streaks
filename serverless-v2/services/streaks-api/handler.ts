@@ -10,6 +10,7 @@ import { errorHandler, NotFoundError } from './src/middleware/error';
 import { checkInHandler } from './src/handlers/check-in';
 import { getStreaksHandler } from './src/handlers/streaks';
 import { getRewardsHandler } from './src/handlers/rewards';
+import { getBadgesHandler } from './src/handlers/badges';
 import { getFreezesHandler } from './src/handlers/freezes';
 import { getCalendarHandler } from './src/handlers/calendar';
 import { handCompletedHandler } from './src/handlers/internal';
@@ -48,6 +49,9 @@ app.use('/api/v1/health', healthRoute);
 app.get('/api/v1/player/streaks', authMiddleware, asyncHandler(getStreaksHandler));
 app.post('/api/v1/player/streaks/check-in', authMiddleware, asyncHandler(checkInHandler));
 app.get('/api/v1/player/streaks/rewards', authMiddleware, asyncHandler(getRewardsHandler));
+// Badges (§4.10) — a pure read-only PROJECTION over the best-ever streaks +
+// reward rows (no storage change). Player auth, same as /rewards.
+app.get('/api/v1/player/streaks/badges', authMiddleware, asyncHandler(getBadgesHandler));
 app.get('/api/v1/player/streaks/freezes', authMiddleware, asyncHandler(getFreezesHandler));
 app.get('/api/v1/player/streaks/calendar', authMiddleware, asyncHandler(getCalendarHandler));
 // Share-card (FR-9, §4.9) — player auth; returns image/svg+xml (not JSON). The
@@ -57,6 +61,7 @@ app.get('/api/v1/player/streaks/share-card', authMiddleware, asyncHandler(shareC
 app.get('/api/v1/streaks', authMiddleware, asyncHandler(getStreaksHandler));
 app.post('/api/v1/streaks/check-in', authMiddleware, asyncHandler(checkInHandler));
 app.get('/api/v1/streaks/rewards', authMiddleware, asyncHandler(getRewardsHandler));
+app.get('/api/v1/streaks/badges', authMiddleware, asyncHandler(getBadgesHandler));
 app.get('/api/v1/streaks/freezes', authMiddleware, asyncHandler(getFreezesHandler));
 app.get('/api/v1/streaks/calendar', authMiddleware, asyncHandler(getCalendarHandler));
 app.get('/api/v1/streaks/share-card', authMiddleware, asyncHandler(shareCardHandler));

@@ -176,6 +176,39 @@ export interface AdminHistoryResponse {
 }
 
 /**
+ * Cosmetic tier of a badge rung, ascending in prestige. Purely presentational —
+ * it drives the badge art/colour the dashboard renders and has NO effect on
+ * points, the streak_bonus txn, or the notification contract.
+ */
+export type BadgeTier = 'tin' | 'copper' | 'bronze' | 'silver' | 'gold' | 'platinum';
+
+/**
+ * One badge rung on an axis (API_CONTRACT.md §4.10). A pure read-only PROJECTION
+ * derived from the player's best-ever streak + the existing reward rows — never
+ * stored. `earned` is `bestStreak >= milestone` (PERMANENT; it never resets when
+ * the current streak breaks). `earnedAt` is the `createdAt` of the earliest
+ * matching reward row, or `null` when no reward row exists for that rung.
+ */
+export interface Badge {
+  milestone: number;
+  name: string;
+  tier: BadgeTier;
+  earned: boolean;
+  earnedAt: string | null;
+}
+
+/**
+ * The §4.10 `GET /api/v1/player/streaks/badges` response: both axes, each with
+ * all six rungs milestone-ascending. A pure derived view (no storage change) —
+ * the BADGE_LADDER in `config/badges.ts` is the single source of the 6+6
+ * name/tier mapping.
+ */
+export interface BadgesResponse {
+  login: Badge[];
+  play: Badge[];
+}
+
+/**
  * Push-notification content payload (FR-7), stored as the `notification` Map on
  * a reward item (DATA_MODEL.md §5). Content only — no delivery.
  */
