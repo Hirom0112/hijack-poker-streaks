@@ -401,7 +401,9 @@ services:
     volumes:
       - ./serverless-v2/services/streaks-frontend:/app
     environment:
-      VITE_API_URL: http://localhost:5001
+      # Default stays localhost (desktop/local dev unchanged). Override with an
+      # env var to test on a real device, e.g. VITE_API_URL=http://<mac-lan-ip>:5001
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:5001}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
