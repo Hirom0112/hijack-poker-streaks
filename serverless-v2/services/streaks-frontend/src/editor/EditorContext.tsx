@@ -6,7 +6,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { DEFAULT_LAYOUT, LAYOUT_VERSION } from './defaultLayout';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { DEFAULT_LAYOUT, DEFAULT_LAYOUT_MOBILE, LAYOUT_VERSION } from './defaultLayout';
 
 /** Per-asset visual transform (applied as a CSS transform, non-destructive). */
 export interface Transform {
@@ -38,36 +39,56 @@ export const useEditor = () => useContext(Ctx);
 
 const LS_OVERRIDES = 'editorOverrides';
 const LS_ACTIVE = 'editorActive';
+/** Mobile edits persist under a separate key so the two layouts never mix. */
+const lsKey = (mobile: boolean) => LS_OVERRIDES + (mobile ? '_m' : '');
+
+/**
+ * Load the baked layout for this breakpoint, then layer any same-version local
+ * edits on top. Mobile (≤md) and desktop have independent baked sets + storage,
+ * so editing one never touches the other.
+ */
+function loadOverrides(mobile: boolean): Record<string, Transform> {
+  const base = mobile ? DEFAULT_LAYOUT_MOBILE : DEFAULT_LAYOUT;
+  let stored: Record<string, Transform> = {};
+  try {
+    if (localStorage.getItem('editorLayoutVersion') === String(LAYOUT_VERSION)) {
+      stored = JSON.parse(localStorage.getItem(lsKey(mobile)) || '{}');
+    } else {
+      localStorage.setItem('editorLayoutVersion', String(LAYOUT_VERSION));
+      localStorage.removeItem(lsKey(false));
+      localStorage.removeItem(lsKey(true));
+    }
+  } catch {
+    stored = {};
+  }
+  return { ...base, ...stored };
+}
 
 export function EditorProvider({ children }: { children: ReactNode }) {
+  // The breakpoint that selects which baked layout + storage key is live — the
+  // same `useIsMobile` (theme's down('md')) every responsive component reads, so
+  // the editor's mobile/desktop swap can never drift from the layouts.
+  const isMobile = useIsMobile();
   const [active, setActive] = useState(() => {
     if (typeof window === 'undefined') return false;
     if (new URLSearchParams(window.location.search).has('edit')) return true;
     return localStorage.getItem(LS_ACTIVE) === '1';
   });
-  const [overrides, setOverrides] = useState<Record<string, Transform>>(() => {
-    // Discard saved edits from an older layout version (so stale card positions
-    // can't mask the responsive grid); otherwise start from the baked header and
-    // let local edits win.
-    let stored: Record<string, Transform> = {};
-    try {
-      if (localStorage.getItem('editorLayoutVersion') === String(LAYOUT_VERSION)) {
-        stored = JSON.parse(localStorage.getItem(LS_OVERRIDES) || '{}');
-      } else {
-        localStorage.setItem('editorLayoutVersion', String(LAYOUT_VERSION));
-        localStorage.removeItem(LS_OVERRIDES);
-      }
-    } catch {
-      stored = {};
-    }
-    return { ...DEFAULT_LAYOUT, ...stored };
-  });
+  const [overrides, setOverrides] = useState<Record<string, Transform>>(() =>
+    loadOverrides(isMobile)
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [registered, setRegistered] = useState<string[]>([]);
 
+  // Crossing the breakpoint swaps to the other layout set (and its saved edits).
   useEffect(() => {
-    localStorage.setItem(LS_OVERRIDES, JSON.stringify(overrides));
-  }, [overrides]);
+    setOverrides(loadOverrides(isMobile));
+    setSelectedId(null);
+  }, [isMobile]);
+
+  useEffect(() => {
+    localStorage.setItem(lsKey(isMobile), JSON.stringify(overrides));
+  }, [overrides, isMobile]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -98,7 +119,10 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       return next;
     });
   }, []);
-  const resetAll = useCallback(() => setOverrides({ ...DEFAULT_LAYOUT }), []);
+  const resetAll = useCallback(
+    () => setOverrides({ ...(isMobile ? DEFAULT_LAYOUT_MOBILE : DEFAULT_LAYOUT) }),
+    [isMobile]
+  );
   const exportJson = useCallback(() => JSON.stringify(overrides, null, 2), [overrides]);
 
   return (

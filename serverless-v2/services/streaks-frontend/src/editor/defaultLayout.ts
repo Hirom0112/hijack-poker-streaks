@@ -5,7 +5,10 @@ import type { Transform } from './EditorContext';
  * older version are discarded (otherwise a stale localStorage would mask the new
  * layout). The header below is always re-applied, so bumping never shrinks it.
  */
-export const LAYOUT_VERSION = 8;
+export const LAYOUT_VERSION = 9;
+
+/** Local identity (avoid importing IDENTITY from EditorContext — circular). */
+const I: Transform = { x: 0, y: 0, rot: 0, sx: 1, sy: 1 };
 
 /**
  * Baked transforms applied by default (edit mode or not).
@@ -65,4 +68,36 @@ export const DEFAULT_LAYOUT: Record<string, Transform> = {
   'badge-label-play-30': { x: 0, y: 32.19, rot: 0, sx: 1, sy: 1 },
   'badge-label-play-60': { x: 0, y: 32.09, rot: 0, sx: 1, sy: 1 },
   'badge-label-play-90': { x: 0, y: 36.17, rot: 0, sx: 1, sy: 1 },
+};
+
+/**
+ * MOBILE baked layout (applied only below `md`, ≈900px — see EditorContext).
+ * Desktop is never affected by anything in here.
+ *
+ * Starts from the desktop layout, then NEUTRALIZES the header transforms — those
+ * scale the wordmark 3× and translate the buttons for the 1440px canvas, which
+ * overflows a phone. At identity the header renders at natural sizes inside the
+ * mobile (stacked) layout. The Trophy-Shelf entries are kept: the shelf is scaled
+ * as a unit on mobile (ScaleToFitContainer at its 1120px design width), so those
+ * px nudges still land correctly before the whole shelf shrinks.
+ *
+ * EDIT THIS via the visual editor on a small screen (Cmd/Ctrl+Shift+E → arrange →
+ * "Copy layout"), then paste the exported JSON over this object.
+ */
+export const DEFAULT_LAYOUT_MOBILE: Record<string, Transform> = {
+  ...DEFAULT_LAYOUT,
+  // Header — see note above (3× wordmark + button translates overflow a phone).
+  shield: I,
+  logo: I,
+  'btn-checkin': I,
+  'btn-share': I,
+  'btn-logout': I,
+  // Trophy-Shelf title/subtitle/shelf-frame: their desktop transforms translate
+  // the title/subtitle DOWNWARD (y +46 / +56) and enlarge them — but these render
+  // OUTSIDE the shelf scaler, so on mobile they shoved into the top medallions.
+  // Neutralized → title + subtitle sit cleanly above the shelf. The per-medallion
+  // and banner nudges stay (they live inside the scaled shelf and seat correctly).
+  'badge-title': I,
+  'badge-subtitle': I,
+  'badge-shelf': I,
 };

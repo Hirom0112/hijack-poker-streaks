@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { Box, MenuItem, Select, Typography } from '@mui/material';
 import { login, type AppDispatch } from '../store';
 import { streaksApi } from '../store/streaksApi';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 /**
  * Seeded demo personas (ASSUMPTIONS A-2): a deliberate 4-persona cast that
@@ -132,6 +133,9 @@ function plaqueButtonSx(accent: string, framed = false, rot = 0) {
 export default function LoginScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  // Portrait phones / small screens get a dedicated centered layout. Desktop
+  // (≥md) falls through to the original absolute-positioned scene UNCHANGED.
+  const isMobile = useIsMobile();
   const [playerId, setPlayerId] = useState('streak-001');
 
   const signIn = (id: string) => {
@@ -144,6 +148,157 @@ export default function LoginScreen() {
   };
   const signUp = () => signIn(freshPlayerId());
 
+  // The demo player picker — shared between layouts; `below` styles the mobile
+  // variant that sits under the plaque instead of floating top-right.
+  const picker = (below = false) => (
+    <Box
+      sx={{
+        position: below ? 'relative' : 'absolute',
+        ...(below ? {} : { left: '84.6%', top: '1.8%' }),
+        zIndex: 3,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        px: 1.5,
+        py: below ? 1 : 0.75,
+        minHeight: below ? 44 : undefined,
+        borderRadius: 999,
+        background: 'rgba(13,9,5,0.55)',
+        border: '1px solid rgba(201,162,75,0.45)',
+        backdropFilter: 'blur(4px)',
+      }}
+    >
+      <Typography variant="caption" sx={{ color: '#C9B68F', letterSpacing: 1 }}>
+        Signing in as
+      </Typography>
+      <Select
+        value={playerId}
+        onChange={(e) => setPlayerId(e.target.value)}
+        variant="standard"
+        disableUnderline
+        inputProps={{ 'aria-label': 'Demo player' }}
+        sx={{
+          color: '#F1D98C',
+          fontWeight: 700,
+          fontSize: below ? 15 : 13,
+          '& .MuiSelect-icon': { color: '#C9A24B' },
+        }}
+        MenuProps={{ PaperProps: { sx: { bgcolor: '#1B130C', color: '#F3E6CC' } } }}
+      >
+        {SEEDED_PLAYERS.map((p) => (
+          <MenuItem key={p.id} value={p.id}>
+            {p.label}
+          </MenuItem>
+        ))}
+      </Select>
+    </Box>
+  );
+
+  // The plaque contents (hero frame + both buttons + brass banner), shared by
+  // both layouts — they're positioned as % of the plaque, so the SAME markup
+  // works whether the plaque is centered (mobile) or absolutely placed (desktop).
+  const plaqueInner = (
+    <>
+      <Box
+        component="img"
+        src="/assets/login/plaque.png"
+        alt="Hijack Poker — The High Roller's Lounge"
+        sx={{ width: '100%', height: '100%', display: 'block', userSelect: 'none' }}
+        draggable={false}
+      />
+      <Box
+        component="button"
+        type="button"
+        aria-label="Sign In"
+        onClick={() => signIn(playerId)}
+        sx={{ ...plaqueButtonSx('rgba(217,164,65,0.6)', false, -0.75), left: '21%', top: '55%', width: '61.5%' }}
+      >
+        <img src="/assets/login/btn-signin.png" alt="" />
+      </Box>
+      <Box
+        component="button"
+        type="button"
+        aria-label="Sign Up"
+        onClick={signUp}
+        sx={{ ...plaqueButtonSx('rgba(170,190,210,0.6)', false, -0.75), left: '21%', top: '70%', width: '61.5%' }}
+      >
+        <img src="/assets/login/btn-signup.png" alt="" />
+      </Box>
+      <Box
+        component="img"
+        src="/assets/login/lounge-banner.png"
+        alt=""
+        aria-hidden
+        sx={{
+          position: 'absolute',
+          left: '31.7%',
+          top: '89.4%',
+          width: '42.1%',
+          transform: 'rotate(-1.5deg) scaleX(1.2)',
+          zIndex: 3,
+          pointerEvents: 'none',
+          userSelect: 'none',
+          filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.55))',
+        }}
+        draggable={false}
+      />
+    </>
+  );
+
+  // ── Mobile / portrait layout ──────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <Box
+        sx={{
+          position: 'fixed',
+          inset: 0,
+          overflow: 'hidden',
+          backgroundImage: 'url(/assets/login/wall.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 3,
+          px: 3,
+          py: 'calc(env(safe-area-inset-top, 0px) + 24px)',
+        }}
+      >
+        {/* Pendant-lamp stand-in: warm glow up top + a soft dark vignette. */}
+        <Box
+          aria-hidden
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'radial-gradient(70% 36% at 50% -4%, rgba(255,210,140,0.45) 0%, transparent 60%), radial-gradient(120% 100% at 50% 55%, transparent 40%, rgba(0,0,0,0.6) 100%)',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* The HERO plaque, centered. Buttons + banner are positioned as % of
+            the plaque, so they scale + move WITH it (same as desktop). The
+            decorative chips/cards props are omitted on mobile to keep the
+            portrait frame clean. */}
+        <Box
+          sx={{
+            position: 'relative',
+            width: 'min(86vw, 360px)',
+            aspectRatio: '1000 / 1378',
+            zIndex: 2,
+            filter: 'drop-shadow(0 5px 14px rgba(0,0,0,0.28))',
+          }}
+        >
+          {plaqueInner}
+        </Box>
+
+        {picker(true)}
+      </Box>
+    );
+  }
+
+  // ── Desktop layout (unchanged) ────────────────────────────────────────────
   return (
     <Box
       sx={{
@@ -224,101 +379,12 @@ export default function LoginScreen() {
           filter: 'drop-shadow(0 5px 14px rgba(0,0,0,0.28))',
         }}
       >
-        <Box
-          component="img"
-          src="/assets/login/plaque.png"
-          alt="Hijack Poker — The High Roller's Lounge"
-          sx={{ width: '100%', height: '100%', display: 'block', userSelect: 'none' }}
-          draggable={false}
-        />
-
-        {/* Sign In / Sign Up image-buttons in the plaque's blank metal panel
-            (positioned as % of the plaque, so they scale + move with it). */}
-        <Box
-          component="button"
-          type="button"
-          aria-label="Sign In"
-          onClick={() => signIn(playerId)}
-          sx={{ ...plaqueButtonSx('rgba(217,164,65,0.6)', false, -0.75), left: '21%', top: '55%', width: '61.5%' }}
-        >
-          <img src="/assets/login/btn-signin.png" alt="" />
-        </Box>
-
-        <Box
-          component="button"
-          type="button"
-          aria-label="Sign Up"
-          onClick={signUp}
-          sx={{ ...plaqueButtonSx('rgba(170,190,210,0.6)', false, -0.75), left: '21%', top: '70%', width: '61.5%' }}
-        >
-          <img src="/assets/login/btn-signup.png" alt="" />
-        </Box>
-
-        {/* Ornate brass nameplate covering the plaque's plain baked footer.
-            Anchored to the plaque so it scales + moves with it. */}
-        <Box
-          component="img"
-          src="/assets/login/lounge-banner.png"
-          alt=""
-          aria-hidden
-          sx={{
-            position: 'absolute',
-            left: '31.7%',
-            top: '89.4%',
-            width: '42.1%',
-            transform: 'rotate(-1.5deg) scaleX(1.2)',
-            zIndex: 3,
-            pointerEvents: 'none',
-            userSelect: 'none',
-            filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.55))',
-          }}
-          draggable={false}
-        />
+        {plaqueInner}
       </Box>
 
       {/* Compact, on-theme demo player picker (defaults to streak-001).
           Tucked top-right so it stays clear of the lounge banner below. */}
-      <Box
-        sx={{
-          position: 'absolute',
-          left: '84.6%',
-          top: '1.8%',
-          zIndex: 3,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          px: 1.5,
-          py: 0.75,
-          borderRadius: 999,
-          background: 'rgba(13,9,5,0.55)',
-          border: '1px solid rgba(201,162,75,0.45)',
-          backdropFilter: 'blur(4px)',
-        }}
-      >
-        <Typography variant="caption" sx={{ color: '#C9B68F', letterSpacing: 1 }}>
-          Signing in as
-        </Typography>
-        <Select
-          value={playerId}
-          onChange={(e) => setPlayerId(e.target.value)}
-          variant="standard"
-          disableUnderline
-          inputProps={{ 'aria-label': 'Demo player' }}
-          sx={{
-            color: '#F1D98C',
-            fontWeight: 700,
-            fontSize: 13,
-            '& .MuiSelect-icon': { color: '#C9A24B' },
-          }}
-          MenuProps={{ PaperProps: { sx: { bgcolor: '#1B130C', color: '#F3E6CC' } } }}
-        >
-          {SEEDED_PLAYERS.map((p) => (
-            <MenuItem key={p.id} value={p.id}>
-              {p.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </Box>
+      {picker(false)}
     </Box>
   );
 }

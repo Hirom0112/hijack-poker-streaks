@@ -5,6 +5,8 @@ import type { Badge } from '../types/streaks.types';
 import { badgeSrc, type StreakAxis } from '../config/badges';
 import Editable from '../editor/Editable';
 import { useEditor } from '../editor/EditorContext';
+import ScaleToFitContainer from './ScaleToFitContainer';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 /**
  * FR-4 (bonus) — the **Trophy Shelf**: a lifetime rank case mounted on a real
@@ -24,7 +26,9 @@ const BANNER = '/assets/dashboard/badges/banner-parchment.png';
 const RYE = '"Rye", "Zilla Slab", Georgia, serif';
 
 // The shelf art is wide; cap its width so it stays compact instead of eating the
-// whole page (it's a full-width grid row otherwise).
+// whole page (it's a full-width grid row otherwise). This is ALSO the design
+// width the mobile scaler shrinks from — the shelf is authored at its max width,
+// so the medallions' tuned px positions only line up at exactly this width.
 const SHELF_MAX_W = 1120; // px at the 1440 design width
 
 // Each band: a banner pinned to the top of the compartment + a row of medallions
@@ -245,6 +249,29 @@ export default function BadgeCase() {
   const { data, isLoading, isError } = useGetBadgesQuery();
   const ed = useEditor();
   const unlockAll = !!ed?.active; // editing → show every badge unlocked for arranging
+  // Phones: the fixed-geometry shelf can't reflow, so scale it whole to fit.
+  // Desktop (≥md) renders it exactly as before.
+  const isMobile = useIsMobile();
+
+  const shelf = data && (
+    <Editable id="badge-shelf" label="Wooden shelf" fill>
+      <Box
+        sx={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: SHELF_MAX_W,
+          mx: 'auto',
+          aspectRatio: '1200 / 641',
+          backgroundImage: `url(${SHELF})`,
+          backgroundSize: '100% 100%',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
+        <Ledge axis="login" label="Login" badges={data.login} band={TOP_LEDGE} unlockAll={unlockAll} />
+        <Ledge axis="play" label="Play" badges={data.play} band={BOTTOM_LEDGE} unlockAll={unlockAll} />
+      </Box>
+    </Editable>
+  );
 
   return (
     <Box>
@@ -298,25 +325,14 @@ export default function BadgeCase() {
         </Typography>
       )}
 
-      {data && (
-        <Editable id="badge-shelf" label="Wooden shelf" fill>
-          <Box
-            sx={{
-              position: 'relative',
-              width: '100%',
-              maxWidth: SHELF_MAX_W,
-              mx: 'auto',
-              aspectRatio: '1200 / 641',
-              backgroundImage: `url(${SHELF})`,
-              backgroundSize: '100% 100%',
-              backgroundRepeat: 'no-repeat',
-            }}
-          >
-            <Ledge axis="login" label="Login" badges={data.login} band={TOP_LEDGE} unlockAll={unlockAll} />
-            <Ledge axis="play" label="Play" badges={data.play} band={BOTTOM_LEDGE} unlockAll={unlockAll} />
-          </Box>
-        </Editable>
-      )}
+      {/* Mobile: scale the whole shelf (fixed geometry) to the column width so the
+          medallions stop overflowing/overlapping. Desktop renders it unchanged. */}
+      {shelf &&
+        (isMobile ? (
+          <ScaleToFitContainer designWidth={SHELF_MAX_W}>{shelf}</ScaleToFitContainer>
+        ) : (
+          shelf
+        ))}
     </Box>
   );
 }

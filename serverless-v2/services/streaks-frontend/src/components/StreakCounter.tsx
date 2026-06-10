@@ -143,7 +143,7 @@ export default function StreakCounter({ label, value, best, motif }: StreakCount
           sx={{
             fontFamily: '"Zilla Slab", Georgia, serif',
             fontWeight: 800,
-            fontSize: 26,
+            fontSize: { xs: 22, md: 26 },
             lineHeight: 1,
             color: 'text.primary',
             letterSpacing: 1.2,
@@ -172,7 +172,12 @@ export default function StreakCounter({ label, value, best, motif }: StreakCount
             sx={{
               fontFamily: '"Zilla Slab", Georgia, serif',
               fontWeight: 900,
-              fontSize: value >= 100 ? 78 : 104,
+              // Phones: smaller so a 3-digit streak + motif fit a 343px card.
+              // Desktop (md+) keeps the original 78/104 sizing.
+              fontSize: {
+                xs: value >= 100 ? 56 : 72,
+                md: value >= 100 ? 78 : 104,
+              },
               lineHeight: 0.85,
               letterSpacing: '-0.02em',
               color: isFlame ? '#EA8C2B' : 'text.primary',

@@ -113,16 +113,27 @@ export default function StreakDashboard() {
   }, [checkInState]);
 
   return (
-    <ScaleToFit designWidth={1440}>
-      <Box sx={{ px: 5, py: 5 }}>
+    <ScaleToFit>
+      <Box
+        sx={{
+          // Desktop (md+) keeps the original 5/5 padding; phones get tighter
+          // gutters + a top inset that clears the iOS notch / status bar.
+          px: { xs: 2, md: 5 },
+          py: { xs: 3, md: 5 },
+          pt: { xs: 'calc(env(safe-area-inset-top, 0px) + 24px)', md: 5 },
+        }}
+      >
       <Box
         sx={{
           display: 'flex',
+          // Phones stack the logo over a centered button row (no overlap);
+          // desktop keeps the original single-row, space-between header.
+          flexDirection: { xs: 'column', md: 'row' },
           alignItems: 'center',
-          justifyContent: 'space-between',
+          justifyContent: { xs: 'center', md: 'space-between' },
           flexWrap: 'wrap',
           gap: 2,
-          mb: 4,
+          mb: { xs: 3, md: 4 },
         }}
       >
         <Box component="h1" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, m: 0, ml: { xs: 0, md: 8 } }}>
@@ -146,7 +157,7 @@ export default function StreakDashboard() {
             Hijack Daily Streaks
           </Box>
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', justifyContent: { xs: 'center', md: 'flex-start' } }}>
           <Editable id="btn-checkin" label="Check-in button">
             <ImageButton
               src={BTN_CHECKIN}

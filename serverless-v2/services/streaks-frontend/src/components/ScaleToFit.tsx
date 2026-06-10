@@ -1,5 +1,7 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Box } from '@mui/material';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { useScaleToFit } from '../hooks/useScaleToFit';
 
 interface ScaleToFitProps {
   /** The width the content is authored at; it scales from here. */
@@ -17,6 +19,12 @@ interface ScaleToFitProps {
  * fixed `designWidth` and CSS-`transform: scale()`d to `window.innerWidth`, so
  * the carefully-placed art never rewraps or clips. The outer box takes the
  * SCALED height so the page scrolls correctly.
+ *
+ * MOBILE: below `md` (≈900px) the fixed-canvas scale-down would render the
+ * 1440px desktop layout at a tiny, clipped size on a phone. There we BYPASS
+ * scaling entirely and render the children fluid (full width), letting their own
+ * responsive breakpoints (the dashboard Grid's `xs`/`sm` columns) stack into a
+ * proper mobile layout. Desktop (≥md) is unchanged — same scaled path as before.
  */
 export default function ScaleToFit({
   designWidth = 1440,
@@ -24,30 +32,18 @@ export default function ScaleToFit({
   minScale = 0.5,
   children,
 }: ScaleToFitProps) {
-  const inner = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  const [height, setHeight] = useState<number | undefined>(undefined);
+  const fluid = useIsMobile();
+  const { inner, scale, height } = useScaleToFit(designWidth, {
+    source: 'window',
+    minScale,
+    maxScale,
+  });
 
-  useLayoutEffect(() => {
-    const el = inner.current;
-    if (!el) return;
-    const update = () => {
-      const s = Math.min(maxScale, Math.max(minScale, window.innerWidth / designWidth));
-      setScale(s);
-      setHeight(el.offsetHeight * s);
-    };
-    update();
-    window.addEventListener('resize', update);
-    // Track content-height changes (data load, async art) so the outer box keeps
-    // up. Guarded — ResizeObserver is absent in some test (jsdom) environments.
-    const ro =
-      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
-    ro?.observe(el);
-    return () => {
-      window.removeEventListener('resize', update);
-      ro?.disconnect();
-    };
-  }, [designWidth, maxScale, minScale]);
+  // Phone / small screen: no fixed canvas, no scale — render fluid so the
+  // children's own responsive breakpoints take over.
+  if (fluid) {
+    return <Box sx={{ width: '100%' }}>{children}</Box>;
+  }
 
   return (
     <Box sx={{ width: '100%', height, overflow: 'hidden' }}>
